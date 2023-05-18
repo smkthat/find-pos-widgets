@@ -1,0 +1,241 @@
+import enum
+import multiprocessing
+import re
+import logging
+import concurrent.futures
+import threading
+import time
+from urllib.parse import urlparse
+
+from tqdm import tqdm
+from bs4 import BeautifulSoup
+from selenium.webdriver import Chrome, ChromeOptions
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.common.exceptions import WebDriverException, TimeoutException
+from selenium.webdriver.common.by import By
+
+from configs.log import get_logger, APP_NAME
+
+logger = get_logger(__name__)
+
+
+class ResultType(enum.Enum):
+    CORRECT = 'correct'
+    NOT_MATCH = 'not_match'
+    COPY_PASTE = 'copy_paste'
+    MISSING = 'missing'
+    TIMEOUT = 'timeout'
+    ERROR = 'error'
+
+
+class ProcessUrl:
+    PAGE_LOAD_TIMEOUT = 10
+    RESULT_FILE_PATH = '../result.txt'
+
+    result: ResultType = None
+
+    def __init__(self, url):
+        self.logger = get_logger(__name__)
+        self.url = url
+        self.__save_lock = threading.Lock()
+
+    @classmethod
+    def __page_has_loaded(cls, driver: Chrome, sleep_time=2):
+        def get_page_hash(d: Chrome) -> int:
+            dom = d.find_element(By.TAG_NAME, 'html').get_attribute('innerHTML')
+            dom_hash = hash(dom.encode('utf-8'))
+            return dom_hash
+
+        page_hash = -1
+        page_hash_new = None
+
+        while page_hash != page_hash_new:
+            page_hash = get_page_hash(driver)
+            time.sleep(sleep_time)
+            page_hash_new = get_page_hash(driver)
+
+    def setup_driver(self) -> Chrome:
+        options = ChromeOptions()
+        options.add_argument('--disable-extensions')
+        options.add_argument('--disable-plugins')
+        options.add_argument('--dns-prefetch-disable')
+        options.add_argument('--disable-gpu')
+        options.add_argument('--headless')
+        options.add_argument('--no-sandbox')
+        options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--no-warnings')
+        driver = Chrome(options=options)
+        return driver
+
+    def load_url(self, driver, url) -> bool:
+        try:
+            logger.info(f'Processing URL: {url}')
+            driver.get(url)
+            return True
+        except WebDriverException as e:
+            logger.error(f'Error retrieving page data: {url!r}\n{e.msg}')
+            return False
+
+    def wait_for_page_load(self, driver: Chrome, timeout: int = 5) -> bool:
+        try:
+            WebDriverWait(driver, timeout).until(
+                lambda d: d.execute_script('return document.readyState') == 'complete'
+            )
+            # self.__page_has_loaded(driver, sleep_time=2)
+        except TimeoutException:
+            logger.error(f'Page load timeout [{timeout} sec] while processing {self.url!r}')
+        return True
+
+    def analyze_page(self, html: str) -> ResultType:
+        soup = BeautifulSoup(html, 'html5lib')
+        a = soup.find('div', {'id': 'group_section_menu_gallery'})
+        if a and a.find_all('a', {'class': 'groups_menu_item'}):
+            for code in ['REG-CODE', 'OGRN', 'ID', 'MUN-CODE']:
+                if code in str(a):
+                    return ResultType.COPY_PASTE
+            if not self.check_widgets_links_template(str(a)):
+                return ResultType.NOT_MATCH
+            else:
+                return ResultType.CORRECT
+        else:
+            return ResultType.MISSING
+
+    def process_url(self) -> ResultType:
+        driver = self.setup_driver()
+        with driver:
+            if self.load_url(driver, self.url):
+                if self.wait_for_page_load(driver, self.PAGE_LOAD_TIMEOUT):
+                    html = driver.page_source
+                    self.result = self.analyze_page(html)
+            else:
+                self.result = ResultType.ERROR
+
+            self.save_results_to_file()
+            return self.result
+
+    @property
+    def result_text(self) -> str:
+        if self.result:
+            return f'{self.result.value} {self.url}'
+
+    def save_results_to_file(self, result_path: str = None):
+        with self.__save_lock:
+            if not result_path:
+                result_path = self.RESULT_FILE_PATH
+
+            if result_text := self.result_text:
+                logging.info(f'Saving results to file: {self.RESULT_FILE_PATH!r}')
+                if self.result != ResultType.CORRECT:
+                    with open(result_path, 'a', encoding='utf-8') as output:
+                        output.write(result_text + '\n')
+
+    @classmethod
+    def check_widgets_links_template(cls, source: str):
+        template1 = 'https://pos.gosuslugi.ru/form/' + r'.' + \
+                    'opaId=' + r'\d+' + \
+                    '&amp;utm_source=vk&amp;utm_medium=' + r'\d+' + \
+                    '&amp;utm_campaign=' + r'\d+'
+        template2 = 'https://pos.gosuslugi.ru/og/org-activities' + r'.' + \
+                    'reg_code=' + r'\d+' + \
+                    '&amp;utm_source=vk1&amp;utm_medium=' + r'\d+' + \
+                    '&amp;utm_campaign=' + r'\d+'
+        template3 = 'https://pos.gosuslugi.ru/og/org-activities' + r'.' + \
+                    'mun_code=' + r'\d+' + \
+                    '&amp;utm_source=vk2&amp;utm_medium=' + r'\d+' + \
+                    '&amp;utm_campaign=' + r'\d+'
+
+        matches1 = re.findall(template1, source)
+        matches2 = re.findall(template2, source)
+        matches3 = re.findall(template3, source)
+
+        return (
+                (len(matches1) > 0 and len(matches2) > 0) or
+                (len(matches1) > 0 and len(matches3) > 0)
+        )
+
+
+class WidgetFinder:
+    TARGET_FILE_PATH = '../target.txt'
+
+    def __init__(self):
+        self.urls = []
+        self.__counters = {result_type.name: 0 for result_type in ResultType}
+        self.__counters_lock = threading.Lock()
+
+    def increment_counter(self, counter_type: ResultType):
+        with self.__counters_lock:
+            self.__counters[counter_type.name] += 1
+
+    @classmethod
+    def check_urls(cls, urls: list) -> list[str]:
+        checked_urls = []
+        for url in urls:
+            if not url.startswith('http'):
+                url = 'https://' + url
+            parsed_url = urlparse(url)
+            if parsed_url.hostname and parsed_url.hostname == 'vk.com':
+                checked_urls.append(url)
+        return checked_urls
+
+    def read_urls_from_file(self):
+        logger.info('Reading file ...')
+        print('Reading file ...')
+        try:
+            with open(self.TARGET_FILE_PATH, 'r', encoding='utf-8') as file:
+                self.urls = self.check_urls(file.read().splitlines())
+                if not self.urls:
+                    logger.error(f'No links found in file {self.TARGET_FILE_PATH!r}.')
+                    print(f'No links found in file {self.TARGET_FILE_PATH!r}.')
+                    exit(1)
+        except FileNotFoundError:
+            open(self.TARGET_FILE_PATH, 'w').close()
+            logger.error(f'File with links not found: {self.TARGET_FILE_PATH!r}')
+            print(f'File with links not found: {self.TARGET_FILE_PATH!r}')
+            exit(2)
+        finally:
+            logger.info(f'Number of links found: {len(self.urls)}')
+            print(f'Number of links found: {len(self.urls)}')
+
+    @classmethod
+    def __process_url(cls, url: str):
+        worker = ProcessUrl(url)
+        return worker.process_url()
+
+    def process_urls(self):
+        logger.info('Starting processing:')
+        print('Starting processing:')
+
+        with tqdm(total=len(self.urls), dynamic_ncols=True, desc='Progress', ) as pbar:
+            pbar.set_postfix(self.__counters)
+            with concurrent.futures.ThreadPoolExecutor(
+                thread_name_prefix=APP_NAME,
+                max_workers=multiprocessing.cpu_count() - 1 if multiprocessing.cpu_count() > 1 else 1
+            ) as executor:
+                futures = [executor.submit(self.__process_url, url, ) for url in self.urls]
+                for future in concurrent.futures.as_completed(futures):
+                    result_type = future.result()
+                    if isinstance(result_type, ResultType):
+                        self.increment_counter(result_type)
+                        pbar.set_postfix(self.__counters)
+                        pbar.update(1)
+
+        logger.info('Processing complete!')
+        print(f'Processing complete! See results in {ProcessUrl.RESULT_FILE_PATH!r}')
+
+    @classmethod
+    def clear_resources(cls):
+        open(ProcessUrl.RESULT_FILE_PATH, 'w').close()
+
+    def start(self):
+        self.clear_resources()
+        self.read_urls_from_file()
+        self.process_urls()
+
+
+def main():
+    finder = WidgetFinder()
+    finder.start()
+
+
+if __name__ == '__main__':
+    main()
