@@ -1,5 +1,6 @@
 import enum
 import multiprocessing
+import os
 import re
 import logging
 import concurrent.futures
@@ -14,7 +15,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 from selenium.common.exceptions import WebDriverException, TimeoutException
 from selenium.webdriver.common.by import By
 
-from configs.log import get_logger, APP_NAME
+from configs.log import get_logger
 
 logger = get_logger(__name__)
 
@@ -30,29 +31,14 @@ class ResultType(enum.Enum):
 
 class ProcessUrl:
     PAGE_LOAD_TIMEOUT = 10
-    RESULT_FILE_PATH = '../result.txt'
+    RESULT_FILE_PATH = os.path.abspath(os.path.join(os.getcwd(), '../result.txt'))
 
     result: ResultType = None
 
-    def __init__(self, url):
+    def __init__(self, url: str):
         self.logger = get_logger(__name__)
         self.url = url
         self.__save_lock = threading.Lock()
-
-    @classmethod
-    def __page_has_loaded(cls, driver: Chrome, sleep_time=2):
-        def get_page_hash(d: Chrome) -> int:
-            dom = d.find_element(By.TAG_NAME, 'html').get_attribute('innerHTML')
-            dom_hash = hash(dom.encode('utf-8'))
-            return dom_hash
-
-        page_hash = -1
-        page_hash_new = None
-
-        while page_hash != page_hash_new:
-            page_hash = get_page_hash(driver)
-            time.sleep(sleep_time)
-            page_hash_new = get_page_hash(driver)
 
     def setup_driver(self) -> Chrome:
         options = ChromeOptions()
@@ -67,31 +53,54 @@ class ProcessUrl:
         driver = Chrome(options=options)
         return driver
 
-    def load_url(self, driver, url) -> bool:
+    def load_url(self, driver: Chrome, url: str) -> bool:
         try:
             logger.info(f'Processing URL: {url}')
             driver.get(url)
-            return True
         except WebDriverException as e:
             logger.error(f'Error retrieving page data: {url!r}\n{e.msg}')
             return False
 
-    def wait_for_page_load(self, driver: Chrome, timeout: int = 5) -> bool:
+        return True
+
+    def __page_has_loaded(self, driver: Chrome, sleep_time=2) -> bool:
+        def get_page_hash(d: Chrome) -> int:
+            dom = d.find_element(By.TAG_NAME, 'html').get_attribute('innerHTML')
+            dom_hash = hash(dom.encode('utf-8'))
+            return dom_hash
+
+        page_hash = -1
+        page_hash_new = None
+        max_iteration = 10
+        iters_count = 0
+
+        while page_hash != page_hash_new:
+            if iters_count == max_iteration:
+                raise TimeoutException
+
+            page_hash = get_page_hash(driver)
+            time.sleep(sleep_time)
+            page_hash_new = get_page_hash(driver)
+            iters_count += 1
+
+        return True
+
+    def wait_for_page_load(self, driver: Chrome, timeout: float = 5.) -> bool:
         try:
             WebDriverWait(driver, timeout).until(
                 lambda d: d.execute_script('return document.readyState') == 'complete'
             )
             # self.__page_has_loaded(driver, sleep_time=2)
+            return True
         except TimeoutException:
             logger.error(f'Page load timeout [{timeout} sec] while processing {self.url!r}')
-        return True
 
     def analyze_page(self, html: str) -> ResultType:
         soup = BeautifulSoup(html, 'html5lib')
         a = soup.find('div', {'id': 'group_section_menu_gallery'})
         if a and a.find_all('a', {'class': 'groups_menu_item'}):
-            for code in ['REG-CODE', 'OGRN', 'ID', 'MUN-CODE']:
-                if code in str(a):
+            for template_utm_code in ['REG-CODE', 'OGRN', 'ID', 'MUN-CODE']:
+                if template_utm_code in str(a):
                     return ResultType.COPY_PASTE
             if not self.check_widgets_links_template(str(a)):
                 return ResultType.NOT_MATCH
@@ -118,7 +127,7 @@ class ProcessUrl:
         if self.result:
             return f'{self.result.value} {self.url}'
 
-    def save_results_to_file(self, result_path: str = None):
+    def save_results_to_file(self, result_path: str = None) -> None:
         with self.__save_lock:
             if not result_path:
                 result_path = self.RESULT_FILE_PATH
@@ -129,8 +138,7 @@ class ProcessUrl:
                     with open(result_path, 'a', encoding='utf-8') as output:
                         output.write(result_text + '\n')
 
-    @classmethod
-    def check_widgets_links_template(cls, source: str):
+    def check_widgets_links_template(self, source: str) -> bool:
         template1 = 'https://pos.gosuslugi.ru/form/' + r'.' + \
                     'opaId=' + r'\d+' + \
                     '&amp;utm_source=vk&amp;utm_medium=' + r'\d+' + \
@@ -155,14 +163,14 @@ class ProcessUrl:
 
 
 class WidgetFinder:
-    TARGET_FILE_PATH = '../target.txt'
+    TARGET_FILE_PATH = os.path.abspath(os.path.join(os.getcwd(), '../target.txt'))
 
     def __init__(self):
         self.urls = []
         self.__counters = {result_type.name: 0 for result_type in ResultType}
         self.__counters_lock = threading.Lock()
 
-    def increment_counter(self, counter_type: ResultType):
+    def increment_counter(self, counter_type: ResultType) -> None:
         with self.__counters_lock:
             self.__counters[counter_type.name] += 1
 
@@ -177,7 +185,7 @@ class WidgetFinder:
                 checked_urls.append(url)
         return checked_urls
 
-    def read_urls_from_file(self):
+    def read_urls_from_file(self) -> None:
         logger.info('Reading file ...')
         print('Reading file ...')
         try:
@@ -196,19 +204,18 @@ class WidgetFinder:
             logger.info(f'Number of links found: {len(self.urls)}')
             print(f'Number of links found: {len(self.urls)}')
 
-    @classmethod
-    def __process_url(cls, url: str):
+    def __process_url(self, url: str) -> ResultType:
         worker = ProcessUrl(url)
         return worker.process_url()
 
-    def process_urls(self):
+    def process_urls(self) -> None:
         logger.info('Starting processing:')
         print('Starting processing:')
 
         with tqdm(total=len(self.urls), dynamic_ncols=True, desc='Progress', ) as pbar:
             pbar.set_postfix(self.__counters)
             with concurrent.futures.ThreadPoolExecutor(
-                thread_name_prefix=APP_NAME,
+                thread_name_prefix='UrlProcessor',
                 max_workers=multiprocessing.cpu_count() - 1 if multiprocessing.cpu_count() > 1 else 1
             ) as executor:
                 futures = [executor.submit(self.__process_url, url, ) for url in self.urls]
@@ -223,10 +230,10 @@ class WidgetFinder:
         print(f'Processing complete! See results in {ProcessUrl.RESULT_FILE_PATH!r}')
 
     @classmethod
-    def clear_resources(cls):
+    def clear_resources(cls) -> None:
         open(ProcessUrl.RESULT_FILE_PATH, 'w').close()
 
-    def start(self):
+    def start(self) -> None:
         self.clear_resources()
         self.read_urls_from_file()
         self.process_urls()
