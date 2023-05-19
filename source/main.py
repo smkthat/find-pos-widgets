@@ -1,13 +1,11 @@
-import enum
-import multiprocessing
 import os
 import re
-import logging
+import enum
 import concurrent.futures
 import threading
 import time
-from urllib.parse import urlparse
 
+from urllib.parse import urlparse
 from tqdm import tqdm
 from bs4 import BeautifulSoup
 from selenium.webdriver import Chrome, ChromeOptions
@@ -133,7 +131,7 @@ class ProcessUrl:
                 result_path = self.RESULT_FILE_PATH
 
             if result_text := self.result_text:
-                logging.info(f'Saving results to file: {self.RESULT_FILE_PATH!r}')
+                self.logger.info(f'Save result: {result_text!r}')
                 if self.result != ResultType.CORRECT:
                     with open(result_path, 'a', encoding='utf-8') as output:
                         output.write(result_text + '\n')
@@ -209,14 +207,13 @@ class WidgetFinder:
         return worker.process_url()
 
     def process_urls(self) -> None:
-        logger.info('Starting processing:')
-        print('Starting processing:')
+        logger.info('Start processing:')
+        print('Start processing:')
 
         with tqdm(total=len(self.urls), dynamic_ncols=True, desc='Progress', ) as pbar:
             pbar.set_postfix(self.__counters)
             with concurrent.futures.ThreadPoolExecutor(
-                thread_name_prefix='UrlProcessor',
-                max_workers=multiprocessing.cpu_count() - 1 if multiprocessing.cpu_count() > 1 else 1
+                    thread_name_prefix='UrlProcessor'
             ) as executor:
                 futures = [executor.submit(self.__process_url, url, ) for url in self.urls]
                 for future in concurrent.futures.as_completed(futures):
