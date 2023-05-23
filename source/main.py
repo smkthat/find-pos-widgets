@@ -13,7 +13,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 from selenium.common.exceptions import WebDriverException, TimeoutException
 from selenium.webdriver.common.by import By
 
-from configs.log import get_logger
+from configs.log import get_logger, LOG_FILE_PATH
 
 logger = get_logger(__name__)
 
@@ -229,14 +229,15 @@ class WidgetFinder:
     @classmethod
     def clear_resources(cls) -> None:
         open(ProcessUrl.RESULT_FILE_PATH, 'w').close()
+        open(LOG_FILE_PATH, 'w').close()
 
     def start(self) -> None:
-        self.clear_resources()
         self.read_urls_from_file()
         self.process_urls()
 
 
 def main():
+    WidgetFinder.clear_resources()
     finder = WidgetFinder()
     finder.start()
 
