@@ -111,7 +111,7 @@ class ProcessUrl:
             # self.__page_has_loaded(driver, sleep_time=2)
             return True
         except TimeoutException:
-            logger.error(f'Page load timeout [{timeout} sec] while processing {self.url!r}')
+            raise TimeoutException(f'Page load timeout [{timeout} sec] while processing {self.url!r}')
 
     def analyze_page(self, html: str) -> ResultType:
         result = ResultType.MISSING
@@ -144,17 +144,25 @@ class ProcessUrl:
         return result
 
     def process_url(self) -> ResultType:
-        driver = self.setup_driver()
-        with driver:
-            if self.load_url(driver, self.url):
-                if self.wait_for_page_load(driver, self.PAGE_LOAD_TIMEOUT):
-                    html = driver.page_source
-                    self.result = self.analyze_page(html)
-            else:
-                self.result = ResultType.ERROR
-
-            self.save_results_to_file()
-            return self.result
+        try:
+            driver = self.setup_driver()
+            with driver:
+                if self.load_url(driver, self.url):
+                    try:
+                        if self.wait_for_page_load(driver, self.PAGE_LOAD_TIMEOUT):
+                            html = driver.page_source
+                            self.result = self.analyze_page(html)
+                    except TimeoutException as te:
+                        self.logger.error(te)
+                        self.result = ResultType.TIMEOUT
+                        pass
+                else:
+                    self.result = ResultType.ERROR
+        except Exception as e:
+            self.result = ResultType.ERROR
+            self.logger.error(f'Raised exception during handle {self.url!r}: {e}')
+        self.save_results_to_file()
+        return self.result
 
     @property
     def result_text(self) -> str:
