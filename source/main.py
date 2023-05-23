@@ -1,11 +1,10 @@
-import enum
-import multiprocessing
 import os
 import re
-import logging
+import enum
 import concurrent.futures
 import threading
 import time
+
 from urllib.parse import urlparse
 
 from tqdm import tqdm
@@ -15,7 +14,7 @@ from selenium.webdriver.support.wait import WebDriverWait
 from selenium.common.exceptions import WebDriverException, TimeoutException
 from selenium.webdriver.common.by import By
 
-from configs.log import get_logger
+from configs.log import get_logger, LOG_FILE_PATH
 
 logger = get_logger(__name__)
 
@@ -23,6 +22,7 @@ logger = get_logger(__name__)
 class ResultType(enum.Enum):
     CORRECT = 'correct'
     NOT_MATCH = 'not_match'
+    SPACER = 'spacer'
     COPY_PASTE = 'copy_paste'
     MISSING = 'missing'
     TIMEOUT = 'timeout'
@@ -31,7 +31,7 @@ class ResultType(enum.Enum):
 
 class ProcessUrl:
     PAGE_LOAD_TIMEOUT = 10
-    RESULT_FILE_PATH = os.path.abspath(os.path.join(os.getcwd(), '../result.txt'))
+    RESULT_FILE_PATH = os.path.abspath(os.path.join(os.getcwd(), '../result.csv'))
 
     result: ResultType = None
 
@@ -44,14 +44,32 @@ class ProcessUrl:
         options = ChromeOptions()
         options.add_argument('--disable-extensions')
         options.add_argument('--disable-plugins')
-        options.add_argument('--dns-prefetch-disable')
         options.add_argument('--disable-gpu')
-        options.add_argument('--headless')
-        options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--disable-infobars')
+        options.add_argument('--dns-prefetch-disable')
+        options.add_argument('--ignore-gpu-blacklist')
+        options.add_argument('--no-default-browser-check')
+        options.add_argument('--no-first-run')
+        options.add_argument('--log-level 3')
+        options.add_argument('--disable-logging')
+        options.add_argument('--disable-in-process-stack-traces')
+        options.add_argument('--disable-crash-reporter')
+        options.add_argument('--window-size=1024,768')
+        options.add_argument('--output=/dev/null')
+        options.add_argument('--silent')
+
+        prefs = {'profile.default_content_setting_values': {
+            'images': 2,
+            'plugins': 2,
+        }}
+        options.add_experimental_option('prefs', prefs)
+        options.add_experimental_option('excludeSwitches', ['enable-logging'])
+
+        options.add_argument('--headless=new')
+        options.add_argument('--no-sandbox')
         options.add_argument('--no-warnings')
-        driver = Chrome(options=options)
-        return driver
+        return Chrome(options=options)
 
     def load_url(self, driver: Chrome, url: str) -> bool:
         try:
@@ -93,39 +111,63 @@ class ProcessUrl:
             # self.__page_has_loaded(driver, sleep_time=2)
             return True
         except TimeoutException:
-            logger.error(f'Page load timeout [{timeout} sec] while processing {self.url!r}')
+            raise TimeoutException(f'Page load timeout [{timeout} sec] while processing {self.url!r}')
 
     def analyze_page(self, html: str) -> ResultType:
+        result = ResultType.MISSING
         soup = BeautifulSoup(html, 'html5lib')
         a = soup.find('div', {'id': 'group_section_menu_gallery'})
-        if a and a.find_all('a', {'class': 'groups_menu_item'}):
-            for template_utm_code in ['REG-CODE', 'OGRN', 'ID', 'MUN-CODE']:
-                if template_utm_code in str(a):
-                    return ResultType.COPY_PASTE
-            if not self.check_widgets_links_template(str(a)):
-                return ResultType.NOT_MATCH
-            else:
-                return ResultType.CORRECT
-        else:
-            return ResultType.MISSING
+        if a:
+            pos_links = [
+                a_tag['href']
+                for a_tag in a.find_all('a', {'class': 'groups_menu_item'})
+                if a_tag['href'].startswith('https://pos.gosuslugi.ru')
+            ]
+            if pos_links:
+                for template_utm_code in ['REG-CODE', 'OGRN', 'ID', 'MUN-CODE']:
+                    if template_utm_code in str(a):
+                        result = ResultType.COPY_PASTE
+                        self.logger.debug(f'Public {self.url!r}: result={result.name}, pos_links={str(pos_links)}')
+                        return result
+                    else:
+                        if 'mediu m' in str(a):
+                            result = ResultType.SPACER
+                        elif self.check_widgets_links_template(str(a)):
+                            result = ResultType.CORRECT
+                        else:
+                            result = ResultType.NOT_MATCH
+
+                    self.logger.debug(f'Public {self.url!r}: result={result.name}, pos_links={str(pos_links)}')
+                    return result
+
+        self.logger.debug(f'Public {self.url!r}: result={result.name}, pos_links=[]')
+        return result
 
     def process_url(self) -> ResultType:
-        driver = self.setup_driver()
-        with driver:
-            if self.load_url(driver, self.url):
-                if self.wait_for_page_load(driver, self.PAGE_LOAD_TIMEOUT):
-                    html = driver.page_source
-                    self.result = self.analyze_page(html)
-            else:
-                self.result = ResultType.ERROR
-
-            self.save_results_to_file()
-            return self.result
+        try:
+            driver = self.setup_driver()
+            with driver:
+                if self.load_url(driver, self.url):
+                    try:
+                        if self.wait_for_page_load(driver, self.PAGE_LOAD_TIMEOUT):
+                            html = driver.page_source
+                            self.result = self.analyze_page(html)
+                    except TimeoutException as te:
+                        self.logger.error(te)
+                        self.result = ResultType.TIMEOUT
+                        pass
+                else:
+                    self.result = ResultType.ERROR
+        except Exception as e:
+            self.result = ResultType.ERROR
+            self.logger.error(f'Raised exception during handle {self.url!r}: {e}')
+        self.save_results_to_file()
+        return self.result
 
     @property
     def result_text(self) -> str:
         if self.result:
-            return f'{self.result.value} {self.url}'
+            return f'{self.result.value}; {self.url}'
 
     def save_results_to_file(self, result_path: str = None) -> None:
         with self.__save_lock:
@@ -133,7 +175,7 @@ class ProcessUrl:
                 result_path = self.RESULT_FILE_PATH
 
             if result_text := self.result_text:
-                logging.info(f'Saving results to file: {self.RESULT_FILE_PATH!r}')
+                self.logger.info(f'Save result: {result_text!r}')
                 if self.result != ResultType.CORRECT:
                     with open(result_path, 'a', encoding='utf-8') as output:
                         output.write(result_text + '\n')
@@ -209,14 +251,13 @@ class WidgetFinder:
         return worker.process_url()
 
     def process_urls(self) -> None:
-        logger.info('Starting processing:')
-        print('Starting processing:')
+        logger.info('Start processing:')
+        print('Start processing:')
 
         with tqdm(total=len(self.urls), dynamic_ncols=True, desc='Progress', ) as pbar:
             pbar.set_postfix(self.__counters)
             with concurrent.futures.ThreadPoolExecutor(
-                thread_name_prefix='UrlProcessor',
-                max_workers=multiprocessing.cpu_count() - 1 if multiprocessing.cpu_count() > 1 else 1
+                    thread_name_prefix='UrlProcessor'
             ) as executor:
                 futures = [executor.submit(self.__process_url, url, ) for url in self.urls]
                 for future in concurrent.futures.as_completed(futures):
@@ -232,14 +273,15 @@ class WidgetFinder:
     @classmethod
     def clear_resources(cls) -> None:
         open(ProcessUrl.RESULT_FILE_PATH, 'w').close()
+        open(LOG_FILE_PATH, 'w').close()
 
     def start(self) -> None:
-        self.clear_resources()
         self.read_urls_from_file()
         self.process_urls()
 
 
 def main():
+    WidgetFinder.clear_resources()
     finder = WidgetFinder()
     finder.start()
 
