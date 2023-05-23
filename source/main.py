@@ -44,14 +44,32 @@ class ProcessUrl:
         options = ChromeOptions()
         options.add_argument('--disable-extensions')
         options.add_argument('--disable-plugins')
-        options.add_argument('--dns-prefetch-disable')
         options.add_argument('--disable-gpu')
-        options.add_argument('--headless')
-        options.add_argument('--no-sandbox')
         options.add_argument('--disable-dev-shm-usage')
+        options.add_argument('--disable-infobars')
+        options.add_argument('--dns-prefetch-disable')
+        options.add_argument('--ignore-gpu-blacklist')
+        options.add_argument('--no-default-browser-check')
+        options.add_argument('--no-first-run')
+        options.add_argument('--log-level 3')
+        options.add_argument('--disable-logging')
+        options.add_argument('--disable-in-process-stack-traces')
+        options.add_argument('--disable-crash-reporter')
+        options.add_argument('--window-size=1024,768')
+        options.add_argument('--output=/dev/null')
+        options.add_argument('--silent')
+
+        prefs = {'profile.default_content_setting_values': {
+            'images': 2,
+            'plugins': 2,
+        }}
+        options.add_experimental_option('prefs', prefs)
+        options.add_experimental_option('excludeSwitches', ['enable-logging'])
+
+        options.add_argument('--headless=new')
+        options.add_argument('--no-sandbox')
         options.add_argument('--no-warnings')
-        driver = Chrome(options=options)
-        return driver
+        return Chrome(options=options)
 
     def load_url(self, driver: Chrome, url: str) -> bool:
         try:
