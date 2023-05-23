@@ -19,3 +19,4 @@ trio-websocket==0.10.2
 urllib3==2.0.2
 webencodings==0.5.1
 wsproto==1.2.0
+requests-html==0.10.0

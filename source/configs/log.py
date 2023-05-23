@@ -8,6 +8,7 @@ LOG_FILE_FORMATTER = logging.Formatter(
     fmt=LOG_FORMAT,
     datefmt=LOG_DATE_FORMAT,
 )
+LOG_FILE_PATH = '../runtime.log'
 
 
 def setup():
@@ -35,7 +36,7 @@ def add_thread_name_to_log_format():
 
 
 def get_runtime_handler():
-    runtime_handler = logging.FileHandler(filename=f'../runtime.log', encoding='utf-8')
+    runtime_handler = logging.FileHandler(filename=LOG_FILE_PATH, encoding='utf-8')
     runtime_handler.setFormatter(LOG_FILE_FORMATTER)
     runtime_handler.setLevel(level=logging.DEBUG)
     return runtime_handler
