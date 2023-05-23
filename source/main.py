@@ -6,6 +6,7 @@ import threading
 import time
 
 from urllib.parse import urlparse
+
 from tqdm import tqdm
 from bs4 import BeautifulSoup
 from selenium.webdriver import Chrome, ChromeOptions
@@ -21,6 +22,7 @@ logger = get_logger(__name__)
 class ResultType(enum.Enum):
     CORRECT = 'correct'
     NOT_MATCH = 'not_match'
+    SPACER = 'spacer'
     COPY_PASTE = 'copy_paste'
     MISSING = 'missing'
     TIMEOUT = 'timeout'
@@ -29,7 +31,7 @@ class ResultType(enum.Enum):
 
 class ProcessUrl:
     PAGE_LOAD_TIMEOUT = 10
-    RESULT_FILE_PATH = os.path.abspath(os.path.join(os.getcwd(), '../result.txt'))
+    RESULT_FILE_PATH = os.path.abspath(os.path.join(os.getcwd(), '../result.csv'))
 
     result: ResultType = None
 
@@ -94,18 +96,34 @@ class ProcessUrl:
             logger.error(f'Page load timeout [{timeout} sec] while processing {self.url!r}')
 
     def analyze_page(self, html: str) -> ResultType:
+        result = ResultType.MISSING
         soup = BeautifulSoup(html, 'html5lib')
         a = soup.find('div', {'id': 'group_section_menu_gallery'})
-        if a and a.find_all('a', {'class': 'groups_menu_item'}):
-            for template_utm_code in ['REG-CODE', 'OGRN', 'ID', 'MUN-CODE']:
-                if template_utm_code in str(a):
-                    return ResultType.COPY_PASTE
-            if not self.check_widgets_links_template(str(a)):
-                return ResultType.NOT_MATCH
-            else:
-                return ResultType.CORRECT
-        else:
-            return ResultType.MISSING
+        if a:
+            pos_links = [
+                a_tag['href']
+                for a_tag in a.find_all('a', {'class': 'groups_menu_item'})
+                if a_tag['href'].startswith('https://pos.gosuslugi.ru')
+            ]
+            if pos_links:
+                for template_utm_code in ['REG-CODE', 'OGRN', 'ID', 'MUN-CODE']:
+                    if template_utm_code in str(a):
+                        result = ResultType.COPY_PASTE
+                        self.logger.debug(f'Public {self.url!r}: result={result.name}, pos_links={str(pos_links)}')
+                        return result
+                    else:
+                        if 'mediu m' in str(a):
+                            result = ResultType.SPACER
+                        elif self.check_widgets_links_template(str(a)):
+                            result = ResultType.CORRECT
+                        else:
+                            result = ResultType.NOT_MATCH
+
+                    self.logger.debug(f'Public {self.url!r}: result={result.name}, pos_links={str(pos_links)}')
+                    return result
+
+        self.logger.debug(f'Public {self.url!r}: result={result.name}, pos_links=[]')
+        return result
 
     def process_url(self) -> ResultType:
         driver = self.setup_driver()
@@ -123,7 +141,7 @@ class ProcessUrl:
     @property
     def result_text(self) -> str:
         if self.result:
-            return f'{self.result.value} {self.url}'
+            return f'{self.result.value}; {self.url}'
 
     def save_results_to_file(self, result_path: str = None) -> None:
         with self.__save_lock:
