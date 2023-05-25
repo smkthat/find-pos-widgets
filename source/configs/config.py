@@ -3,7 +3,9 @@ from dataclasses import dataclass
 
 from omegaconf import OmegaConf, DictConfig
 
-CONFIG_PATH = os.path.abspath(os.path.join(os.getcwd(), os.path.join('..', 'config.yaml')))
+from source.helpers.utils import get_path
+
+CONFIG_PATH = get_path(os.path.join(os.path.dirname(__file__), '..', 'config.yaml'))
 
 
 @dataclass
@@ -22,3 +24,6 @@ class Config:
 
 
 CONFIG = Config()
+TARGET_FILE_PATH = get_path(CONFIG.log.get('target_file_path', '../target.txt'))
+RESULT_FILE_PATH = get_path(CONFIG.log.get('result_file_path', '../result.csv'))
+SAVE_PUBLIC_DATA_DIR = get_path(os.path.expanduser(CONFIG.parsing.get('save_public_data_dir', None)))

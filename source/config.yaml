@@ -3,7 +3,7 @@ vk_api:
   version: 5.131
 parsing:
   skip_correct: false
-  save_public_data_dir: '../publics_data'
+  save_public_data_dir: 'publics_data'
   min_interval: 0
   fields: [menu, activity, city, contacts, description, members_count, status]
 log:

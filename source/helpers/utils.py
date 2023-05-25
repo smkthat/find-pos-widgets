@@ -1,3 +1,6 @@
+import os.path
+
+
 def split_dict_by_keys(target: dict, max_count: int = 500) -> list[dict]:
     result = []
     dict_keys = list(target.keys())
@@ -10,3 +13,10 @@ def split_dict_by_keys(target: dict, max_count: int = 500) -> list[dict]:
         result.append(sub_dict)
 
     return result
+
+
+def get_path(path: str) -> str:
+    path = os.path.abspath(os.path.join(os.getcwd(), path))
+    dirname = os.path.dirname(path) if os.path.isfile(path) or '.' in os.path.basename(path) else path
+    os.makedirs(dirname, exist_ok=True)
+    return path

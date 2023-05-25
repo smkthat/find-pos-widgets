@@ -14,6 +14,7 @@ class Public:
     def __init__(self, url: str):
         self.__url = url
         self.pos_widget = PosWidget()
+        self.data = {}
 
     @property
     def url(self):

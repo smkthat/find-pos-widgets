@@ -81,7 +81,7 @@ python main.py
 ```
 
 ## Configurations:
-##### [Default](config.yaml) config:
+##### [Default](source/config.yaml) config:
 ```
 vk_api:
   access_token: abc123456789de

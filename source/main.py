@@ -1,5 +1,4 @@
 import json
-import os
 import sys
 import time
 import unicodedata
@@ -9,7 +8,7 @@ from vk import API
 from vk.exceptions import VkAPIError
 from requests.exceptions import ConnectionError
 
-from source.configs.config import CONFIG
+from source.configs.config import CONFIG, SAVE_PUBLIC_DATA_DIR, RESULT_FILE_PATH, TARGET_FILE_PATH
 from source.configs.log import get_logger, LOG_FILE_PATH
 from source.finder import Public, PosWidget
 from source.helpers.utils import split_dict_by_keys
@@ -18,10 +17,6 @@ logger = get_logger(__name__)
 
 
 class WidgetFinder:
-    TARGET_FILE_PATH = os.path.abspath(
-        os.path.join(os.getcwd(), CONFIG.log.get('target_file_path', os.path.join('..', 'target.txt'))))
-    RESULT_FILE_PATH = os.path.abspath(
-        os.path.join(os.getcwd(), CONFIG.log.get('result_file_path', os.path.join('..', 'result.csv'))))
     VK_BASE_URL = 'https://vk.com'
 
     urls: set[str]
@@ -47,27 +42,27 @@ class WidgetFinder:
         logger.info(f'Clearing resources ...')
         print(f'Clearing resources ...')
         open(LOG_FILE_PATH, 'w', encoding='utf-8').close()
-        with open(self.RESULT_FILE_PATH, 'w', encoding='utf-8') as f:
+        with open(RESULT_FILE_PATH, 'w', encoding='utf-8') as f:
             f.write('pos_result;public_url;pos_link1;pos_link1_status;pos_link2;pos_link2_status\n')
 
     def read_urls_from_file(self) -> None:
         logger.info('Reading file ...')
         print('Reading file ...')
         try:
-            with open(self.TARGET_FILE_PATH, 'r', encoding='utf-8') as file:
+            with open(TARGET_FILE_PATH, 'r', encoding='utf-8') as file:
                 self.urls = self.clean_urls(file.read().splitlines())
                 if not self.urls:
-                    logger.error(f'No links found in file {self.TARGET_FILE_PATH!r}.')
-                    print(f'No links found in file {self.TARGET_FILE_PATH!r}.')
+                    logger.error(f'No links found in file {TARGET_FILE_PATH!r}.')
+                    print(f'No links found in file {TARGET_FILE_PATH!r}.')
                     exit(1)
                 else:
                     logger.info('Prepare publics from links ...')
                     print('Prepare publics from links ...')
                     self.publics = {url: Public(url) for url in self.urls}
         except FileNotFoundError:
-            open(self.TARGET_FILE_PATH, 'w', encoding='utf-8').close()
-            logger.error(f'File with links not found: {self.TARGET_FILE_PATH!r}')
-            print(f'File with links not found: {self.TARGET_FILE_PATH!r}')
+            open(TARGET_FILE_PATH, 'w', encoding='utf-8').close()
+            logger.error(f'File with links not found: {TARGET_FILE_PATH!r}')
+            print(f'File with links not found: {TARGET_FILE_PATH!r}')
             exit(2)
         finally:
             logger.info(f'Number of links found: {len(self.urls)}')
@@ -122,7 +117,7 @@ class WidgetFinder:
                             time.sleep(sleep)
 
         logger.info('Processing complete!')
-        print(f'Processing complete! See results in {self.RESULT_FILE_PATH!r}')
+        print(f'Processing complete! See results in {RESULT_FILE_PATH!r}')
 
     def __get_publics_data(
             self,
@@ -167,7 +162,7 @@ class WidgetFinder:
 
     def __save_results_to_file(self, public: Public, result_path: str = None) -> None:
         if not result_path:
-            result_path = self.RESULT_FILE_PATH
+            result_path = RESULT_FILE_PATH
 
         pos_widget = public.pos_widget
         if not CONFIG.parsing.get('skip_correct') and pos_widget.result is not PosWidget.ResultType.CORRECT:
@@ -184,13 +179,10 @@ class WidgetFinder:
                 logger.info(f'Save result: {result_text!r}')
                 output.write(result_text + '\n')
 
-        save_public_data_dir = os.path.abspath(
-            os.path.join(os.getcwd(), CONFIG.parsing.get('save_public_data_dir'))) if CONFIG.parsing.get(
-            'save_public_data_dir') else False
-        if save_public_data_dir:
-            os.makedirs(save_public_data_dir, exist_ok=True)
-            with open(f'{save_public_data_dir}/{public.identify}.json', 'w', encoding='utf-8') as f:
-                json.dump(public.data, f, ensure_ascii=False)
+        if SAVE_PUBLIC_DATA_DIR:
+            if public.data:
+                with open(f'{SAVE_PUBLIC_DATA_DIR}/{public.identify}.json', 'w', encoding='utf-8') as f:
+                    json.dump(public.data, f, ensure_ascii=False)
 
     def clean_urls(self, urls: list[str]) -> set[str]:
         return {self.clean_url(url) for url in urls}
