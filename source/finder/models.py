@@ -1,7 +1,7 @@
 import re
 import enum
 
-from source.configs.log import get_logger
+from .configs.log import get_logger
 
 logger = get_logger(__name__)
 
