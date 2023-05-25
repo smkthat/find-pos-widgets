@@ -1,7 +1,7 @@
 import logging
 import os
 
-from source.configs.config import CONFIG
+from .configs.config import CONFIG
 
 APP_NAME = 'find-pos-widgets'
 LOG_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
