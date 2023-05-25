@@ -82,6 +82,8 @@ https://vk.com/best_public_ever
 venv\Scripts\activate.bat
 # PowerShell
 venv\Scripts\Activate.ps1
+# Linux / MacOS
+source venv/bin/activate
 
 python main.py
 ```
