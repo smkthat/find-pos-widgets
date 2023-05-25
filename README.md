@@ -48,7 +48,6 @@ venv\Scripts\activate.bat
 # PowerShell
 venv\Scripts\Activate.ps1
 
-cd source
 pip install --upgrade pip
 pip install -r requirements.txt
 deactivate
@@ -56,7 +55,6 @@ deactivate
 For Linux / MacOS:
 ```
 source venv/bin/activate
-cd source
 pip install --upgrade pip
 pip install -r requirements.txt
 deactivate
@@ -92,13 +90,13 @@ vk_api:
   version: 5.131
 parsing:
   skip_correct: false
-  save_public_data_dir: '../publics_data'
+  save_public_data_dir: 'publics_data'
   min_interval: 0
   fields: [menu, activity, city, contacts, description, members_count, status]
 log:
-  log_file_path: '../runtime.log'
-  target_file_path: '../target.txt'
-  result_file_path: '../result.csv'
+  log_file_path: 'runtime.log'
+  target_file_path: 'target.txt'
+  result_file_path: 'result.csv'
 exceptions:
   connection:
     max_tries: 5 # tries count to get data
