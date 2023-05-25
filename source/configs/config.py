@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 from omegaconf import OmegaConf, DictConfig
 
-from source.helpers.utils import get_path
+from .helpers.utils import get_path
 
 CONFIG_PATH = get_path(os.path.join(os.path.dirname(__file__), '..', 'config.yaml'))
 
