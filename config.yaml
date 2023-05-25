@@ -7,9 +7,9 @@ parsing:
   min_interval: 0
   fields: [menu, activity, city, contacts, description, members_count, status]
 log:
-  log_file_path: '../runtime.log'
-  target_file_path: '../target.txt'
-  result_file_path: '../result.csv'
+  log_file_path: 'runtime.log'
+  target_file_path: 'target.txt'
+  result_file_path: 'result.csv'
 exceptions:
   connection:
     max_tries: 5

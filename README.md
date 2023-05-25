@@ -40,7 +40,7 @@ cd {{project_dir}}
 python -m venv venv
 ```
 
-##### 2. Install [requirements](source/requirements.txt):
+##### 2. Install [requirements](requirements.txt):
 For Windows:
 ```
 # cmd.exe
@@ -82,10 +82,10 @@ python main.py
 ```
 
 ##### 5. Stop parsing:
-> Use keys: ctrl + c
+> Use keys: `ctrl` + `c`
 
 ## Configurations:
-##### [Default](source/config.yaml) config:
+##### [Default](config.yaml) config:
 ```
 vk_api:
   access_token: abc123456789de

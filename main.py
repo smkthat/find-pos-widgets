@@ -8,10 +8,10 @@ from vk import API
 from vk.exceptions import VkAPIError
 from requests.exceptions import ConnectionError
 
-from source.configs.config import CONFIG, SAVE_PUBLIC_DATA_DIR, RESULT_FILE_PATH, TARGET_FILE_PATH
-from source.configs.log import get_logger, LOG_FILE_PATH
-from source.finder import Public, PosWidget
-from source.helpers.utils import split_dict_by_keys
+from configs import CONFIG, SAVE_PUBLIC_DATA_DIR, RESULT_FILE_PATH, TARGET_FILE_PATH, LOG_FILE_PATH
+from configs import get_logger
+from finder import Public, PosWidget
+from helpers import split_dict_by_keys
 
 logger = get_logger(__name__)
 

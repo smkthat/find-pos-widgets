@@ -1,7 +1,7 @@
 import logging
 import os
 
-from source.configs.config import CONFIG
+from . import CONFIG
 
 APP_NAME = 'find-pos-widgets'
 LOG_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
@@ -12,7 +12,7 @@ LOG_FILE_FORMATTER = logging.Formatter(
     datefmt=LOG_DATE_FORMAT,
 )
 LOG_FILE_PATH = os.path.abspath(
-    os.path.join(os.getcwd(), CONFIG.log.get('log_file_path', os.path.join('..', 'runtime.log'))))
+    os.path.join(os.getcwd(), CONFIG.log.get('log_file_path', os.path.join('../source', 'runtime.log'))))
 
 
 def setup():
