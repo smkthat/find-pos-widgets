@@ -54,6 +54,7 @@ For Windows:
 venv\Scripts\activate.bat
 # PowerShell
 venv\Scripts\Activate.ps1
+
 cd source
 pip install --upgrade pip
 pip install -r requirements.txt
@@ -61,7 +62,7 @@ deactivate
 ```
 For Linux / MacOS:
 ```
-venv/bin/activate
+source venv/bin/activate
 cd source
 pip install --upgrade pip
 pip install -r requirements.txt
@@ -77,8 +78,16 @@ https://vk.com/best_public_ever
 
 ##### 4. Start parsing:
 ```
+# cmd.exe
+venv\Scripts\activate.bat
+# PowerShell
+venv\Scripts\Activate.ps1
+
 python main.py
 ```
+
+##### 5. Stop parsing:
+> Use keys: ctrl + c
 
 ## Configurations:
 ##### [Default](source/config.yaml) config:
