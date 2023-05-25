@@ -1,0 +1,16 @@
+vk_api:
+  access_token: <Provide token>
+  version: 5.131
+parsing:
+  skip_correct: false
+  save_public_data_dir: '../publics_data'
+  min_interval: 0
+  fields: [menu, activity, city, contacts, description, members_count, status]
+log:
+  log_file_path: '../runtime.log'
+  target_file_path: '../target.txt'
+  result_file_path: '../result.csv'
+exceptions:
+  connection:
+    max_tries: 5
+    timeout: 5

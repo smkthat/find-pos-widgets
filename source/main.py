@@ -1,244 +1,71 @@
+import json
 import os
-import re
-import enum
-import concurrent.futures
-import threading
+import sys
 import time
-
-from urllib.parse import urlparse
+import unicodedata
 
 from tqdm import tqdm
-from bs4 import BeautifulSoup
-from selenium.webdriver import Chrome, ChromeOptions
-from selenium.webdriver.support.wait import WebDriverWait
-from selenium.common.exceptions import WebDriverException, TimeoutException
-from selenium.webdriver.common.by import By
+from vk import API
+from vk.exceptions import VkAPIError
+from requests.exceptions import ConnectionError
 
-from configs.log import get_logger, LOG_FILE_PATH
+from source.configs.config import CONFIG
+from source.configs.log import get_logger, LOG_FILE_PATH
+from source.finder import Public, PosWidget
+from source.helpers.utils import split_dict_by_keys
 
 logger = get_logger(__name__)
 
 
-class ResultType(enum.Enum):
-    CORRECT = 'correct'
-    NOT_MATCH = 'not_match'
-    SPACER = 'spacer'
-    COPY_PASTE = 'copy_paste'
-    MISSING = 'missing'
-    TIMEOUT = 'timeout'
-    ERROR = 'error'
-
-
-class ProcessUrl:
-    PAGE_LOAD_TIMEOUT = 10
-    RESULT_FILE_PATH = os.path.abspath(os.path.join(os.getcwd(), '../result.csv'))
-
-    result: ResultType = None
-
-    def __init__(self, url: str):
-        self.logger = get_logger(__name__)
-        self.url = url
-        self.__save_lock = threading.Lock()
-
-    def setup_driver(self) -> Chrome:
-        options = ChromeOptions()
-        options.add_argument('--disable-extensions')
-        options.add_argument('--disable-plugins')
-        options.add_argument('--disable-gpu')
-        options.add_argument('--disable-dev-shm-usage')
-        options.add_argument('--disable-infobars')
-        options.add_argument('--dns-prefetch-disable')
-        options.add_argument('--ignore-gpu-blacklist')
-        options.add_argument('--no-default-browser-check')
-        options.add_argument('--no-first-run')
-        options.add_argument('--log-level 3')
-        options.add_argument('--disable-logging')
-        options.add_argument('--disable-in-process-stack-traces')
-        options.add_argument('--disable-crash-reporter')
-        options.add_argument('--window-size=1024,768')
-        options.add_argument('--output=/dev/null')
-        options.add_argument('--silent')
-
-        prefs = {'profile.default_content_setting_values': {
-            'images': 2,
-            'plugins': 2,
-        }}
-        options.add_experimental_option('prefs', prefs)
-        options.add_experimental_option('excludeSwitches', ['enable-logging'])
-
-        options.add_argument('--headless=new')
-        options.add_argument('--no-sandbox')
-        options.add_argument('--no-warnings')
-        return Chrome(options=options)
-
-    def load_url(self, driver: Chrome, url: str) -> bool:
-        try:
-            logger.info(f'Processing URL: {url}')
-            driver.get(url)
-        except WebDriverException as e:
-            logger.error(f'Error retrieving page data: {url!r}\n{e.msg}')
-            return False
-
-        return True
-
-    def __page_has_loaded(self, driver: Chrome, sleep_time=2) -> bool:
-        def get_page_hash(d: Chrome) -> int:
-            dom = d.find_element(By.TAG_NAME, 'html').get_attribute('innerHTML')
-            dom_hash = hash(dom.encode('utf-8'))
-            return dom_hash
-
-        page_hash = -1
-        page_hash_new = None
-        max_iteration = 10
-        iters_count = 0
-
-        while page_hash != page_hash_new:
-            if iters_count == max_iteration:
-                raise TimeoutException
-
-            page_hash = get_page_hash(driver)
-            time.sleep(sleep_time)
-            page_hash_new = get_page_hash(driver)
-            iters_count += 1
-
-        return True
-
-    def wait_for_page_load(self, driver: Chrome, timeout: float = 5.) -> bool:
-        try:
-            WebDriverWait(driver, timeout).until(
-                lambda d: d.execute_script('return document.readyState') == 'complete'
-            )
-            # self.__page_has_loaded(driver, sleep_time=2)
-            return True
-        except TimeoutException:
-            raise TimeoutException(f'Page load timeout [{timeout} sec] while processing {self.url!r}')
-
-    def analyze_page(self, html: str) -> ResultType:
-        result = ResultType.MISSING
-        soup = BeautifulSoup(html, 'html5lib')
-        a = soup.find('div', {'id': 'group_section_menu_gallery'})
-        if a:
-            pos_links = [
-                a_tag['href']
-                for a_tag in a.find_all('a', {'class': 'groups_menu_item'})
-                if a_tag['href'].startswith('https://pos.gosuslugi.ru')
-            ]
-            if pos_links:
-                for template_utm_code in ['REG-CODE', 'OGRN', 'ID', 'MUN-CODE']:
-                    if template_utm_code in str(a):
-                        result = ResultType.COPY_PASTE
-                        self.logger.debug(f'Public {self.url!r}: result={result.name}, pos_links={str(pos_links)}')
-                        return result
-                    else:
-                        if 'mediu m' in str(a):
-                            result = ResultType.SPACER
-                        elif self.check_widgets_links_template(str(a)):
-                            result = ResultType.CORRECT
-                        else:
-                            result = ResultType.NOT_MATCH
-
-                    self.logger.debug(f'Public {self.url!r}: result={result.name}, pos_links={str(pos_links)}')
-                    return result
-
-        self.logger.debug(f'Public {self.url!r}: result={result.name}, pos_links=[]')
-        return result
-
-    def process_url(self) -> ResultType:
-        try:
-            driver = self.setup_driver()
-            with driver:
-                if self.load_url(driver, self.url):
-                    try:
-                        if self.wait_for_page_load(driver, self.PAGE_LOAD_TIMEOUT):
-                            html = driver.page_source
-                            self.result = self.analyze_page(html)
-                    except TimeoutException as te:
-                        self.logger.error(te)
-                        self.result = ResultType.TIMEOUT
-                        pass
-                else:
-                    self.result = ResultType.ERROR
-        except Exception as e:
-            self.result = ResultType.ERROR
-            self.logger.error(f'Raised exception during handle {self.url!r}: {e}')
-        self.save_results_to_file()
-        return self.result
-
-    @property
-    def result_text(self) -> str:
-        if self.result:
-            return f'{self.result.value}; {self.url}'
-
-    def save_results_to_file(self, result_path: str = None) -> None:
-        with self.__save_lock:
-            if not result_path:
-                result_path = self.RESULT_FILE_PATH
-
-            if result_text := self.result_text:
-                self.logger.info(f'Save result: {result_text!r}')
-                if self.result != ResultType.CORRECT:
-                    with open(result_path, 'a', encoding='utf-8') as output:
-                        output.write(result_text + '\n')
-
-    def check_widgets_links_template(self, source: str) -> bool:
-        template1 = 'https://pos.gosuslugi.ru/form/' + r'.' + \
-                    'opaId=' + r'\d+' + \
-                    '&amp;utm_source=vk&amp;utm_medium=' + r'\d+' + \
-                    '&amp;utm_campaign=' + r'\d+'
-        template2 = 'https://pos.gosuslugi.ru/og/org-activities' + r'.' + \
-                    'reg_code=' + r'\d+' + \
-                    '&amp;utm_source=vk1&amp;utm_medium=' + r'\d+' + \
-                    '&amp;utm_campaign=' + r'\d+'
-        template3 = 'https://pos.gosuslugi.ru/og/org-activities' + r'.' + \
-                    'mun_code=' + r'\d+' + \
-                    '&amp;utm_source=vk2&amp;utm_medium=' + r'\d+' + \
-                    '&amp;utm_campaign=' + r'\d+'
-
-        matches1 = re.findall(template1, source)
-        matches2 = re.findall(template2, source)
-        matches3 = re.findall(template3, source)
-
-        return (
-                (len(matches1) > 0 and len(matches2) > 0) or
-                (len(matches1) > 0 and len(matches3) > 0)
-        )
-
-
 class WidgetFinder:
-    TARGET_FILE_PATH = os.path.abspath(os.path.join(os.getcwd(), '../target.txt'))
+    TARGET_FILE_PATH = os.path.abspath(
+        os.path.join(os.getcwd(), CONFIG.log.get('target_file_path', os.path.join('..', 'target.txt'))))
+    RESULT_FILE_PATH = os.path.abspath(
+        os.path.join(os.getcwd(), CONFIG.log.get('result_file_path', os.path.join('..', 'result.csv'))))
+    VK_BASE_URL = 'https://vk.com'
+
+    urls: set[str]
+    publics: dict[str, Public]
+    __api: API
 
     def __init__(self):
-        self.urls = []
-        self.__counters = {result_type.name: 0 for result_type in ResultType}
-        self.__counters_lock = threading.Lock()
+        self.urls = set()
+        self.publics = {}
+        self.__counters = {result_type.name: 0 for result_type in PosWidget.ResultType}
+        self.__api = API(access_token=CONFIG.vk_api['access_token'], v=CONFIG.vk_api.get('version', '5.131'))
 
-    def increment_counter(self, counter_type: ResultType) -> None:
-        with self.__counters_lock:
-            self.__counters[counter_type.name] += 1
+    @property
+    def api(self):
+        return self.__api
 
-    @classmethod
-    def check_urls(cls, urls: list) -> list[str]:
-        checked_urls = []
-        for url in urls:
-            if not url.startswith('http'):
-                url = 'https://' + url
-            parsed_url = urlparse(url)
-            if parsed_url.hostname and parsed_url.hostname == 'vk.com':
-                checked_urls.append(url)
-        return checked_urls
+    def start(self) -> None:
+        self.clear_resources()
+        self.read_urls_from_file()
+        self.process_publics()
+
+    def clear_resources(self) -> None:
+        logger.info(f'Clearing resources ...')
+        print(f'Clearing resources ...')
+        open(LOG_FILE_PATH, 'w', encoding='utf-8').close()
+        with open(self.RESULT_FILE_PATH, 'w', encoding='utf-8') as f:
+            f.write('pos_result;public_url;pos_link1;pos_link1_status;pos_link2;pos_link2_status\n')
 
     def read_urls_from_file(self) -> None:
         logger.info('Reading file ...')
         print('Reading file ...')
         try:
             with open(self.TARGET_FILE_PATH, 'r', encoding='utf-8') as file:
-                self.urls = self.check_urls(file.read().splitlines())
+                self.urls = self.clean_urls(file.read().splitlines())
                 if not self.urls:
                     logger.error(f'No links found in file {self.TARGET_FILE_PATH!r}.')
                     print(f'No links found in file {self.TARGET_FILE_PATH!r}.')
                     exit(1)
+                else:
+                    logger.info('Prepare publics from links ...')
+                    print('Prepare publics from links ...')
+                    self.publics = {url: Public(url) for url in self.urls}
         except FileNotFoundError:
-            open(self.TARGET_FILE_PATH, 'w').close()
+            open(self.TARGET_FILE_PATH, 'w', encoding='utf-8').close()
             logger.error(f'File with links not found: {self.TARGET_FILE_PATH!r}')
             print(f'File with links not found: {self.TARGET_FILE_PATH!r}')
             exit(2)
@@ -246,45 +73,133 @@ class WidgetFinder:
             logger.info(f'Number of links found: {len(self.urls)}')
             print(f'Number of links found: {len(self.urls)}')
 
-    def __process_url(self, url: str) -> ResultType:
-        worker = ProcessUrl(url)
-        return worker.process_url()
-
-    def process_urls(self) -> None:
+    def process_publics(self) -> None:
         logger.info('Start processing:')
         print('Start processing:')
 
-        with tqdm(total=len(self.urls), dynamic_ncols=True, desc='Progress', ) as pbar:
-            pbar.set_postfix(self.__counters)
-            with concurrent.futures.ThreadPoolExecutor(
-                    thread_name_prefix='UrlProcessor'
-            ) as executor:
-                futures = [executor.submit(self.__process_url, url, ) for url in self.urls]
-                for future in concurrent.futures.as_completed(futures):
-                    result_type = future.result()
-                    if isinstance(result_type, ResultType):
-                        self.increment_counter(result_type)
+        publics_group = split_dict_by_keys(self.publics)
+
+        with tqdm(
+                total=len(self.urls),
+                ncols=150,
+                desc='Processing',
+                unit='url',
+                mininterval=CONFIG.parsing.get('min_interval', 0.01),
+        ) as pbar:
+            for publics in publics_group:
+                publics_data_list = publics.values()
+                try:
+                    publics_data_list = self.__get_publics_data(
+                        group_identifies=[p.identify for p in publics_data_list]
+                    )
+                    pbar.set_postfix(self.__counters)
+                except VkAPIError as ve:
+                    sys.exit(f'{type(ve).__name__}: {ve}')
+                except ConnectionError as ce:
+                    for p in publics_data_list:
+                        p.pos_widget.result = PosWidget.ResultType.TIMEOUT
+                    logger.error(f'Raised exception during handle {str(publics.keys())}:\n{type(ce)} {ce}')
+                except RuntimeError as e:
+                    for p in publics_data_list:
+                        p.pos_widget.result = PosWidget.ResultType.ERROR
+                    logger.error(f'Raised exception during handle {str(publics.keys())}:\n{type(e)} {e}')
+                finally:
+                    for public_data in publics_data_list:
+                        if isinstance(public_data, dict):
+                            public = self.get_public(public_data)
+                            public.parse(public_data)
+                        else:
+                            public = public_data
+
+                        self.__save_results_to_file(public)
+                        self.__increment_counter(public.pos_widget.result)
+
                         pbar.set_postfix(self.__counters)
                         pbar.update(1)
 
+                        sleep = CONFIG.parsing.get('min_interval')
+                        if sleep and sleep > 0:
+                            time.sleep(sleep)
+
         logger.info('Processing complete!')
-        print(f'Processing complete! See results in {ProcessUrl.RESULT_FILE_PATH!r}')
+        print(f'Processing complete! See results in {self.RESULT_FILE_PATH!r}')
+
+    def __get_publics_data(
+            self,
+            group_identifies: list[str],
+            tries: int = 0,
+            timeout: int = CONFIG.exceptions.get('connection', {}).get('timeout', 5)
+    ) -> list[dict]:
+        group_ids = ','.join(group_identifies)
+        fields = CONFIG.parsing.get('fields', [])
+        fields.append('menu')
+
+        try:
+            logger.debug(f'Get data for publics: {group_ids}')
+            publics_data = self.api.groups.getById(
+                group_ids=group_ids,
+                fields=','.join(fields)
+            )
+        except ConnectionError as ce:
+            if tries == CONFIG.exceptions.get('connection', {}).get('max_tries', 5):
+                raise ce
+
+            tries += 1
+            timeout = timeout * tries
+
+            logger.error(f'{type(ce)}: Can\'t get public data, timeout {timeout} sec: '
+                         f'tries={tries}, group_identifies={str(group_identifies)}')
+            print(f'\n{type(ce).__name__}: Can\'t get public data, timeout {timeout} sec: : '
+                  f'tries={tries}, urls={len(group_identifies)}. '
+                  f'For more detail see {LOG_FILE_PATH!r}.')
+
+            time.sleep(timeout)
+            return self.__get_publics_data(group_identifies, tries)
+        return publics_data
+
+    def get_public(self, public_data: dict) -> Public:
+        public = self.publics.get(f'{self.VK_BASE_URL}/club{public_data["id"]}') or \
+                 self.publics.get(f'{self.VK_BASE_URL}/{public_data.get("screen_name", "")}')
+        return public
+
+    def __increment_counter(self, counter_type: PosWidget.ResultType) -> None:
+        self.__counters[counter_type.name] += 1
+
+    def __save_results_to_file(self, public: Public, result_path: str = None) -> None:
+        if not result_path:
+            result_path = self.RESULT_FILE_PATH
+
+        pos_widget = public.pos_widget
+        if not CONFIG.parsing.get('skip_correct') and pos_widget.result is not PosWidget.ResultType.CORRECT:
+            with open(result_path, 'a', encoding='utf-8') as output:
+                if pos_widget:
+                    pos_links_str = ";".join([
+                        f'{pos_link.url!r};{pos_link.status}'
+                        for pos_link in pos_widget.urls
+                    ]) if pos_widget.urls else ';;;'
+                    result_text = f'{pos_widget.result.name};{public.url};{pos_links_str}'
+                else:
+                    result_text = f'{PosWidget.ResultType.ERROR.name};{public.url};;;;'
+
+                logger.info(f'Save result: {result_text!r}')
+                output.write(result_text + '\n')
+
+        save_public_data_dir = os.path.abspath(
+            os.path.join(os.getcwd(), CONFIG.parsing.get('save_public_data_dir'))) if CONFIG.parsing.get(
+            'save_public_data_dir') else False
+        if save_public_data_dir:
+            os.makedirs(save_public_data_dir, exist_ok=True)
+            with open(f'{save_public_data_dir}/{public.identify}.json', 'w', encoding='utf-8') as f:
+                json.dump(public.data, f, ensure_ascii=False)
+
+    def clean_urls(self, urls: list[str]) -> set[str]:
+        return {self.clean_url(url) for url in urls}
 
     @classmethod
-    def clear_resources(cls) -> None:
-        open(ProcessUrl.RESULT_FILE_PATH, 'w').close()
-        open(LOG_FILE_PATH, 'w').close()
-
-    def start(self) -> None:
-        self.read_urls_from_file()
-        self.process_urls()
-
-
-def main():
-    WidgetFinder.clear_resources()
-    finder = WidgetFinder()
-    finder.start()
+    def clean_url(cls, url: str) -> str:
+        return unicodedata.normalize('NFKC', url)
 
 
 if __name__ == '__main__':
-    main()
+    widget_finder = WidgetFinder()
+    widget_finder.start()
