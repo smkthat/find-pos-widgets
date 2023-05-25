@@ -34,13 +34,6 @@ INVALID;https://vk.com/club12345678;'https://pos.gosuslugi.ru/form/?.....';<Stat
 
 ## Deployment:
 
-#### Use scripts for deployment:
-
-- [unix](unix) for Linux / MacOS
-- [windows](windows) for Windows
-
-or
-
 ##### 1. Create _**env**_:
 ```
 cd {{project_dir}}
