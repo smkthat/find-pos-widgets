@@ -9,7 +9,7 @@ from vk import API
 from vk.exceptions import VkAPIError
 from requests.exceptions import ConnectionError
 
-from configs import CONFIG, SAVE_PUBLIC_DATA_DIR, RESULT_FILE_PATH, TARGET_FILE_PATH, LOG_FILE_PATH
+from configs import CONFIG
 from configs import get_logger
 from finder import Public, PosWidget
 from helpers import split_dict_by_keys
@@ -42,28 +42,38 @@ class WidgetFinder:
     def clear_resources(self) -> None:
         logger.info(f'Clearing resources ...')
         print(f'Clearing resources ...')
-        open(LOG_FILE_PATH, 'w', encoding='utf-8').close()
-        with open(RESULT_FILE_PATH, 'w', encoding='utf-16') as f:
-            f.write('pos_result;public_url;pos_link1;pos_link1_status;pos_link2;pos_link2_status\n')
+        open(CONFIG.paths.log_file, 'w', encoding='utf-8').close()
+        with open(CONFIG.paths.result_file, 'w', encoding='utf-16') as f:
+            f.write(f'pos_result'
+                    f'{CONFIG.display_types.csv_delimiter}'
+                    f'public_url'
+                    f'{CONFIG.display_types.csv_delimiter}'
+                    f'pos_link1'
+                    f'{CONFIG.display_types.csv_delimiter}'
+                    f'pos_link1_status'
+                    f'{CONFIG.display_types.csv_delimiter}'
+                    f'pos_link2'
+                    f'{CONFIG.display_types.csv_delimiter}'
+                    f'pos_link2_status\n')
 
     def read_urls_from_file(self) -> None:
         logger.info('Reading file ...')
         print('Reading file ...')
         try:
-            with open(TARGET_FILE_PATH, 'r', encoding='utf-8') as file:
+            with open(CONFIG.paths.target_file, 'r', encoding='utf-8') as file:
                 self.urls = self.clean_urls(file.read().splitlines())
                 if not self.urls:
-                    logger.error(f'No links found in file {TARGET_FILE_PATH!r}.')
-                    print(f'No links found in file {TARGET_FILE_PATH!r}.')
+                    logger.error(f'No links found in file {CONFIG.paths.target_file!r}.')
+                    print(f'No links found in file {CONFIG.paths.target_file!r}.')
                     exit(1)
                 else:
                     logger.info('Prepare publics from links ...')
                     print('Prepare publics from links ...')
                     self.publics = {url: Public(url) for url in self.urls}
         except FileNotFoundError:
-            open(TARGET_FILE_PATH, 'w', encoding='utf-8').close()
-            logger.error(f'File with links not found: {TARGET_FILE_PATH!r}')
-            print(f'File with links not found: {TARGET_FILE_PATH!r}')
+            open(CONFIG.paths.target_file, 'w', encoding='utf-8').close()
+            logger.error(f'File with links not found: {CONFIG.paths.target_file!r}')
+            print(f'File with links not found: {CONFIG.paths.target_file!r}')
             exit(2)
         finally:
             logger.info(f'Number of links found: {len(self.urls)}')
@@ -80,8 +90,9 @@ class WidgetFinder:
                 ncols=150,
                 desc='Processing',
                 unit='url',
-                mininterval=CONFIG.parsing.min_interval,
+                mininterval=CONFIG.progressbar.min_interval_per_unit,
         ) as pbar:
+            pbar.set_postfix(self.__counters)
             for publics in publics_group:
                 publics_data_list = publics.values()
                 try:
@@ -117,12 +128,12 @@ class WidgetFinder:
                         pbar.set_postfix(self.__counters)
                         pbar.update(1)
 
-                        sleep = CONFIG.parsing.min_interval
+                        sleep = CONFIG.progressbar.min_interval_per_unit
                         if sleep and sleep > 0:
                             time.sleep(sleep)
 
-        logger.info('Processing complete!')
-        print(f'Processing complete! See results in {RESULT_FILE_PATH!r}')
+        logger.info(f'Processing complete! {self.__counters}')
+        print(f'Processing complete! See results in {CONFIG.paths.result_file!r}')
 
     def __get_publics_data(
             self,
@@ -131,7 +142,7 @@ class WidgetFinder:
             timeout: int = CONFIG.exceptions.get('connection', {}).get('timeout', 5)
     ) -> List[dict]:
         group_ids = ','.join(group_identifies)
-        fields = CONFIG.parsing.fields
+        fields = CONFIG.parsing.public_data_fields
 
         try:
             logger.debug(f'Get data for publics: {group_ids}')
@@ -150,7 +161,7 @@ class WidgetFinder:
                          f'tries={tries}, group_identifies={str(group_identifies)}')
             print(f'\n{type(ce).__name__}: Can\'t get public data, timeout {timeout} sec: : '
                   f'tries={tries}, urls={len(group_identifies)}. '
-                  f'For more detail see {LOG_FILE_PATH!r}.')
+                  f'For more detail see {CONFIG.paths.result_file!r}.')
 
             time.sleep(timeout)
             return self.__get_publics_data(group_identifies, tries)
@@ -172,21 +183,26 @@ class WidgetFinder:
         else:
             with open(result_path, 'a', encoding='utf-16') as output:
                 if pos_widget:
-                    pos_links_str = ";".join([
-                        f'{pos_link.url};{pos_link.status.value}'
+                    pos_links_str = CONFIG.display_types.csv_delimiter.join([
+                        f'{pos_link.url}{CONFIG.display_types.csv_delimiter}{pos_link.status}'
                         for pos_link in pos_widget.urls
-                    ]) if pos_widget.urls else ';;;'
-                    result_text = f'{pos_widget.result.value};{public.url};{pos_links_str}'
+                    ])
+                    result_text = f'{pos_widget.result}' \
+                                  f'{CONFIG.display_types.csv_delimiter}' \
+                                  f'{public.url}' \
+                                  f'{CONFIG.display_types.csv_delimiter}' \
+                                  f'{pos_links_str}'
                 else:
-                    result_text = f'{PosWidget.ResultType.ERROR.value};{public.url};;;;'
+                    result_text = f'{PosWidget.ResultType.ERROR}' \
+                                  f'{CONFIG.display_types.csv_delimiter}' \
+                                  f'{public.url}'
 
                 logger.info(f'Save result: {result_text!r}')
                 output.write(result_text + '\n')
 
-        if SAVE_PUBLIC_DATA_DIR:
-            if public.data:
-                with open(f'{SAVE_PUBLIC_DATA_DIR}/{public.identify}.json', 'w', encoding='utf-8') as f:
-                    json.dump(public.data, f, ensure_ascii=False)
+        if CONFIG.parsing.save_public_data and public.data:
+            with open(f'{CONFIG.paths.save_public_data_dir}/{public.identify}.json', 'w', encoding='utf-8') as f:
+                json.dump(public.data, f, ensure_ascii=False)
 
     def clean_urls(self, urls: List[str]) -> Set[str]:
         return {self.clean_url(url) for url in urls}

@@ -1,26 +1,36 @@
 vk_api:
-  access_token: <Provide token>
+  access_token: 'Provide token here'
   version: 5.131
 parsing:
+  max_links_per_widget: 2
   skip_correct: false
+  save_public_data: true
+  public_data_fields: [ menu, activity, city, contacts, description, members_count, status ]
+progressbar:
+  min_interval_per_unit: 0
+display_types:
+  csv_delimiter: ';'
+  status_types:
+    pattern: '{name}: {value}'
+    items:
+      VALID: { name: '✅ Ok', value: 'Correct url' }
+      NOT_MATCH: { name: '❌ Template', value: 'Invalid, url dont match pattern' }
+      UTM_INVALID: { name: '❌ UTM-code', value: 'Invalid UTM code value' }
+      SPACER: { name: '⚠️ Space', value: 'Invalid, url contains spaces' }
+  result_types:
+    pattern: '{name}: {value}'
+    items:
+      CORRECT: { name: '✅ Ok', value: 'Widgets exists and urls is correct' }
+      INVALID: { name: '⚠️ Invalid', value: 'Widgets exists and urls NOT valid' }
+      LINKS_COUNT: { name: '❗️Links count', value: 'Widgets links count not pass tests' }
+      MISSING: { name: '❌ Missing', value: 'Widgets NOT exists' }
+      TIMEOUT: { name: '⌛️ Timeout', value: 'Timeout when getting url page data' }
+      ERROR: { name: '🆘 Error', value: 'NOT valid url or data parsing errors' }
+paths:
+  log_file: 'runtime.log'
+  target_file: 'target.txt'
+  result_file: 'result.csv'
   save_public_data_dir: 'publics_data'
-  min_interval: 0
-  fields: [menu, activity, city, contacts, description, members_count, status]
-  status:
-    VALID: 'Соответствует'
-    NOT_MATCH: 'Не соответствует шаблону'
-    UTM_INVALID: 'Некорректные UTM метки'
-    SPACER: 'В ссылке есть пробелы'
-  result:
-    CORRECT: '✅Ок'
-    INVALID: '⚠️Есть ошибки'
-    MISSING: '❌Отсутствует'
-    TIMEOUT: '⌛️Превышен интервал ожидания данных'
-    ERROR: '🆘Не удалось обработать данные'
-log:
-  log_file_path: 'runtime.log'
-  target_file_path: 'target.txt'
-  result_file_path: 'result.csv'
 exceptions:
   connection:
     max_tries: 5

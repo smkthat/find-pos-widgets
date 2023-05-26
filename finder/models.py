@@ -38,16 +38,16 @@ class Public:
 
 class PosUrl:
     class Status(enum.Enum):
-        VALID = CONFIG.parsing.status.get('VALID')
-        NOT_MATCH = CONFIG.parsing.status.get('NOT_MATCH')
-        UTM_INVALID = CONFIG.parsing.status.get('UTM_INVALID')
-        SPACER = CONFIG.parsing.status.get('SPACER')
+        VALID = CONFIG.display_types.status_types.items['VALID']
+        NOT_MATCH = CONFIG.display_types.status_types.items['NOT_MATCH']
+        UTM_INVALID = CONFIG.display_types.status_types.items['UTM_INVALID']
+        SPACER = CONFIG.display_types.status_types.items['SPACER']
 
-        def __str__(self):
-            return f'<{self.__class__.__name__} ' \
-                   f'name={self.name!r}, ' \
-                   f'value={self.value!r}' \
-                   f'>'
+        def __str__(self) -> str:
+            return CONFIG.display_types.status_types.pattern.format(
+                name=self.value.name,
+                value=self.value.value
+            )
 
     def __init__(self, url: str, status: Status = Status.NOT_MATCH):
         self.__url = url
@@ -78,11 +78,18 @@ class PosWidget:
     )
 
     class ResultType(enum.Enum):
-        CORRECT = CONFIG.parsing.result.get('CORRECT')
-        INVALID = CONFIG.parsing.result.get('INVALID')
-        MISSING = CONFIG.parsing.result.get('MISSING')
-        TIMEOUT = CONFIG.parsing.result.get('TIMEOUT')
-        ERROR = CONFIG.parsing.result.get('ERROR')
+        CORRECT = CONFIG.display_types.result_types.items['CORRECT']
+        INVALID = CONFIG.display_types.result_types.items['INVALID']
+        LINKS_COUNT = CONFIG.display_types.result_types.items['LINKS_COUNT']
+        MISSING = CONFIG.display_types.result_types.items['MISSING']
+        TIMEOUT = CONFIG.display_types.result_types.items['TIMEOUT']
+        ERROR = CONFIG.display_types.result_types.items['ERROR']
+
+        def __str__(self) -> str:
+            return CONFIG.display_types.result_types.pattern.format(
+                name=self.value.name,
+                value=self.value.value
+            )
 
     urls: List[PosUrl]
     result: ResultType
@@ -108,6 +115,9 @@ class PosWidget:
         if not urls:
             return self.ResultType.MISSING
 
+        if CONFIG.parsing.max_links_per_widget != 0 and len(urls) != CONFIG.parsing.max_links_per_widget:
+            return self.ResultType.LINKS_COUNT
+
         if all([pos_url.status == pos_url.Status.VALID for pos_url in urls]):
             return self.ResultType.CORRECT
 
@@ -115,7 +125,7 @@ class PosWidget:
                 lambda u: u.status in (
                         PosUrl.Status.NOT_MATCH,
                         PosUrl.Status.UTM_INVALID,
-                        PosUrl.Status.SPACER
+                        PosUrl.Status.SPACER,
                 ), urls
         ))) > 0:
             return self.ResultType.INVALID
@@ -151,5 +161,3 @@ class PosWidget:
             return PosUrl(url, status=PosUrl.Status.VALID)
 
         return PosUrl(url)
-
-
