@@ -128,7 +128,7 @@ exceptions:
 
 ## Requirements:
 
-- **Python** >= 3.11
+- **Python** >= 3.8
 - **omegaconf** == 2.3.0
 - **tqdm** == 4.65.0
 - **vk** == 3.0
