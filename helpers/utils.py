@@ -1,7 +1,8 @@
 import os.path
+from typing import Dict, List
 
 
-def split_dict_by_keys(target: dict, max_count: int = 500) -> list[dict]:
+def split_dict_by_keys(target: Dict, max_count: int = 500) -> List[Dict]:
     result = []
     dict_keys = list(target.keys())
 

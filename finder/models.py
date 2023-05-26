@@ -1,7 +1,8 @@
 import re
 import enum
+from typing import List
 
-from configs import get_logger
+from configs import get_logger, CONFIG
 
 logger = get_logger(__name__)
 
@@ -37,10 +38,10 @@ class Public:
 
 class PosUrl:
     class Status(enum.Enum):
-        VALID = 'Correct url'
-        NOT_MATCH = 'Invalid, url dont match pattern'
-        UTM_INVALID = 'Invalid UTM code value'
-        SPACER = 'Invalid, url contains spaces'
+        VALID = CONFIG.parsing.status.get('VALID')
+        NOT_MATCH = CONFIG.parsing.status.get('NOT_MATCH')
+        UTM_INVALID = CONFIG.parsing.status.get('UTM_INVALID')
+        SPACER = CONFIG.parsing.status.get('SPACER')
 
         def __str__(self):
             return f'<{self.__class__.__name__} ' \
@@ -77,13 +78,13 @@ class PosWidget:
     )
 
     class ResultType(enum.Enum):
-        CORRECT = 'Valid widget urls'
-        INVALID = 'Invalid widget urls'
-        MISSING = 'Widget not exists'
-        TIMEOUT = 'Errors when getting public page data'
-        ERROR = 'Runtime errors'
+        CORRECT = CONFIG.parsing.result.get('CORRECT')
+        INVALID = CONFIG.parsing.result.get('INVALID')
+        MISSING = CONFIG.parsing.result.get('MISSING')
+        TIMEOUT = CONFIG.parsing.result.get('TIMEOUT')
+        ERROR = CONFIG.parsing.result.get('ERROR')
 
-    urls: list[PosUrl]
+    urls: List[PosUrl]
     result: ResultType
 
     def __init__(self):
@@ -101,7 +102,7 @@ class PosWidget:
         self.result = self._get_result()
         return self
 
-    def _get_result(self, urls: list[PosUrl] = None) -> ResultType:
+    def _get_result(self, urls: List[PosUrl] = None) -> ResultType:
         urls = self.urls if not urls else urls
 
         if not urls:

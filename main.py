@@ -2,6 +2,7 @@ import json
 import sys
 import time
 import unicodedata
+from typing import Set, Dict, List
 
 from tqdm import tqdm
 from vk import API
@@ -19,8 +20,8 @@ logger = get_logger(__name__)
 class WidgetFinder:
     VK_BASE_URL = 'https://vk.com'
 
-    urls: set[str]
-    publics: dict[str, Public]
+    urls: Set[str]
+    publics: Dict[str, Public]
     __api: API
 
     def __init__(self):
@@ -79,7 +80,7 @@ class WidgetFinder:
                 ncols=150,
                 desc='Processing',
                 unit='url',
-                mininterval=CONFIG.parsing.get('min_interval', 0.01),
+                mininterval=CONFIG.parsing.min_interval,
         ) as pbar:
             for publics in publics_group:
                 publics_data_list = publics.values()
@@ -102,7 +103,11 @@ class WidgetFinder:
                     for public_data in publics_data_list:
                         if isinstance(public_data, dict):
                             public = self.get_public(public_data)
-                            public.parse(public_data)
+                            if public:
+                                public.parse(public_data)
+                            else:
+                                public = Public(f'https://vk.com/{public_data.get("screen_name")}')
+                                public.pos_widget.result = PosWidget.ResultType.ERROR
                         else:
                             public = public_data
 
@@ -112,7 +117,7 @@ class WidgetFinder:
                         pbar.set_postfix(self.__counters)
                         pbar.update(1)
 
-                        sleep = CONFIG.parsing.get('min_interval')
+                        sleep = CONFIG.parsing.min_interval
                         if sleep and sleep > 0:
                             time.sleep(sleep)
 
@@ -121,13 +126,12 @@ class WidgetFinder:
 
     def __get_publics_data(
             self,
-            group_identifies: list[str],
+            group_identifies: List[str],
             tries: int = 0,
             timeout: int = CONFIG.exceptions.get('connection', {}).get('timeout', 5)
-    ) -> list[dict]:
+    ) -> List[dict]:
         group_ids = ','.join(group_identifies)
-        fields = CONFIG.parsing.get('fields', [])
-        fields.append('menu')
+        fields = CONFIG.parsing.fields
 
         try:
             logger.debug(f'Get data for publics: {group_ids}')
@@ -153,16 +157,17 @@ class WidgetFinder:
         return publics_data
 
     def get_public(self, public_data: dict) -> Public:
-        public = self.publics.get(f'{self.VK_BASE_URL}/club{public_data["id"]}') or \
-                 self.publics.get(f'{self.VK_BASE_URL}/{public_data.get("screen_name", "")}')
-        return public
+        by_club = self.publics.get(f'{self.VK_BASE_URL}/club{public_data["id"]}')
+        by_public = self.publics.get(f'{self.VK_BASE_URL}/public{public_data["id"]}')
+        by_screen_name = self.publics.get(f'{self.VK_BASE_URL}/{public_data.get("screen_name", "")}')
+        return by_club if by_club else (by_public if by_public else by_screen_name)
 
     def __increment_counter(self, counter_type: PosWidget.ResultType) -> None:
         self.__counters[counter_type.name] += 1
 
     def __save_results_to_file(self, public: Public, result_path: str = 'result.csv') -> None:
         pos_widget = public.pos_widget
-        if CONFIG.parsing.get('skip_correct') and pos_widget.result is PosWidget.ResultType.CORRECT:
+        if CONFIG.parsing.skip_correct and pos_widget.result is PosWidget.ResultType.CORRECT:
             pass
         else:
             with open(result_path, 'a', encoding='utf-16') as output:
@@ -183,7 +188,7 @@ class WidgetFinder:
                 with open(f'{SAVE_PUBLIC_DATA_DIR}/{public.identify}.json', 'w', encoding='utf-8') as f:
                     json.dump(public.data, f, ensure_ascii=False)
 
-    def clean_urls(self, urls: list[str]) -> set[str]:
+    def clean_urls(self, urls: List[str]) -> Set[str]:
         return {self.clean_url(url) for url in urls}
 
     @classmethod
