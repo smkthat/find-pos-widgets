@@ -42,7 +42,7 @@ class WidgetFinder:
         logger.info(f'Clearing resources ...')
         print(f'Clearing resources ...')
         open(LOG_FILE_PATH, 'w', encoding='utf-8').close()
-        with open(RESULT_FILE_PATH, 'w', encoding='utf-8') as f:
+        with open(RESULT_FILE_PATH, 'w', encoding='utf-16') as f:
             f.write('pos_result;public_url;pos_link1;pos_link1_status;pos_link2;pos_link2_status\n')
 
     def read_urls_from_file(self) -> None:
@@ -160,21 +160,20 @@ class WidgetFinder:
     def __increment_counter(self, counter_type: PosWidget.ResultType) -> None:
         self.__counters[counter_type.name] += 1
 
-    def __save_results_to_file(self, public: Public, result_path: str = None) -> None:
-        if not result_path:
-            result_path = RESULT_FILE_PATH
-
+    def __save_results_to_file(self, public: Public, result_path: str = 'result.csv') -> None:
         pos_widget = public.pos_widget
-        if not CONFIG.parsing.get('skip_correct') and pos_widget.result is not PosWidget.ResultType.CORRECT:
-            with open(result_path, 'a', encoding='utf-8') as output:
+        if CONFIG.parsing.get('skip_correct') and pos_widget.result is PosWidget.ResultType.CORRECT:
+            pass
+        else:
+            with open(result_path, 'a', encoding='utf-16') as output:
                 if pos_widget:
                     pos_links_str = ";".join([
-                        f'{pos_link.url!r};{pos_link.status}'
+                        f'{pos_link.url};{pos_link.status.value}'
                         for pos_link in pos_widget.urls
                     ]) if pos_widget.urls else ';;;'
-                    result_text = f'{pos_widget.result.name};{public.url};{pos_links_str}'
+                    result_text = f'{pos_widget.result.value};{public.url};{pos_links_str}'
                 else:
-                    result_text = f'{PosWidget.ResultType.ERROR.name};{public.url};;;;'
+                    result_text = f'{PosWidget.ResultType.ERROR.value};{public.url};;;;'
 
                 logger.info(f'Save result: {result_text!r}')
                 output.write(result_text + '\n')
@@ -189,7 +188,7 @@ class WidgetFinder:
 
     @classmethod
     def clean_url(cls, url: str) -> str:
-        return unicodedata.normalize('NFKC', url)
+        return unicodedata.normalize('NFKC', url.strip())
 
 
 if __name__ == '__main__':
