@@ -209,6 +209,9 @@ class WidgetFinder:
 
     @classmethod
     def clean_url(cls, url: str) -> str:
+        url = url.replace('m.vk.com', 'vk.com')
+        if '?' in url:
+            url = url.split('?')[0]
         return unicodedata.normalize('NFKC', url.strip())
 
 

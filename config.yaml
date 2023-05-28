@@ -22,7 +22,7 @@ display_types:
     items:
       CORRECT: { name: '✅ Ok', value: 'Widgets exists and urls is correct' }
       INVALID: { name: '⚠️ Invalid', value: 'Widgets exists and urls NOT valid' }
-      LINKS_COUNT: { name: '❗️Links count', value: 'Widgets links count not pass tests' }
+      LINKS_COUNT: { name: '❗️Links count', value: 'Incorrect number of widgets' }
       MISSING: { name: '❌ Missing', value: 'Widgets NOT exists' }
       TIMEOUT: { name: '⌛️ Timeout', value: 'Timeout when getting url page data' }
       ERROR: { name: '🆘 Error', value: 'NOT valid url or data parsing errors' }
