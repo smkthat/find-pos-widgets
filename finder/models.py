@@ -68,7 +68,7 @@ class PosWidget:
     BASE_URL = 'https://pos.gosuslugi.ru'
     WIDGETS_CONTAINER_SELECTOR = 'div#group_section_menu_gallery .ui_gallery__inner'
     UTM_CODES_PATTERN = re.compile(r'REG-CODE|OGRN|ID|MUN-CODE')
-    SPACERS_PATTERN = re.compile(r'\s')
+    SPACERS_PATTERN = re.compile(r'\s|%20')
     TEMPLATE_PATTERN = re.compile(
         r'https://pos\.gosuslugi\.ru/'
         r'(?:form/\?(opaId=\d+)|og/org-activities\?(?:(reg_code=\d{2,8})|(mun_code=\d{8})))'
