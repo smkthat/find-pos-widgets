@@ -22,7 +22,7 @@ class Config:
         self.parsing = self.Parsing(data.get('parsing'))
         self.progressbar = self.Progressbar(data.get('progressbar'))
         self.display_types = self.DisplayTypes(data.get('display_types'))
-        self.paths = self.Paths(data.get('path'))
+        self.paths = self.Paths(data.get('paths'))
         self.exceptions = data.get('exceptions')
 
     @dataclass
