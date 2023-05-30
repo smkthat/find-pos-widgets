@@ -103,10 +103,10 @@ class Config:
             if not data:
                 data = {}
 
-            self.log_file = data.get('log_file', 'runtime.log')
-            self.target_file = data.get('target_file', 'target.txt')
-            self.result_file = data.get('result_file', 'result.csv')
-            self.save_public_data_dir = data.get('save_public_data_dir', 'publics_data')
+            self.log_file = get_path(data.get('log_file', 'runtime.log'))
+            self.target_file = get_path(data.get('target_file', 'target.txt'))
+            self.result_file = get_path(data.get('result_file', 'result.csv'))
+            self.save_public_data_dir = get_path(data.get('save_public_data_dir', 'publics_data'))
 
 
 CONFIG = Config()
