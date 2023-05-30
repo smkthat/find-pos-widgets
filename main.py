@@ -3,6 +3,7 @@ import sys
 import time
 import unicodedata
 from typing import Set, Dict, List
+from urllib.parse import urlparse
 
 from tqdm import tqdm
 from vk import API
@@ -69,7 +70,9 @@ class WidgetFinder:
                 else:
                     logger.info('Prepare publics from links ...')
                     print('Prepare publics from links ...')
-                    self.publics = {url: Public(url) for url in self.urls}
+                    for url in self.urls:
+                        if url not in self.publics:
+                            self.publics[url] = Public(url)
         except FileNotFoundError:
             open(CONFIG.paths.target_file, 'w', encoding='utf-8').close()
             logger.error(f'File with links not found: {CONFIG.paths.target_file!r}')
@@ -120,7 +123,7 @@ class WidgetFinder:
                                 public = Public(f'https://vk.com/{public_data.get("screen_name")}')
                                 public.pos_widget.result = PosWidget.ResultType.ERROR
                         else:
-                            public = public_data
+                            public: Public = public_data
 
                         self.__save_results_to_file(public)
                         self.__increment_counter(public.pos_widget.result)
@@ -210,10 +213,18 @@ class WidgetFinder:
     @classmethod
     def clean_url(cls, url: str) -> str:
         url = url.strip('\ufeff')
-        url = url.replace('m.vk.com', 'vk.com')
-        if '?' in url:
-            url = url.split('?')[0]
-        return unicodedata.normalize('NFKC', url.strip())
+        url = unicodedata.normalize('NFKC', url.strip())
+        parsed_url = urlparse(url)
+
+        scheme = parsed_url.scheme
+        if scheme == 'http':
+            scheme = 'https'
+        hostname = parsed_url.hostname
+        if hostname != 'vk.com':
+            hostname = 'vk.com'
+
+        url = f'{scheme}://{hostname}{parsed_url.path}'
+        return url
 
 
 if __name__ == '__main__':
