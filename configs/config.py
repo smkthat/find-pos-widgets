@@ -73,7 +73,7 @@ class Config:
 
             self.csv_delimiter = data.get('csv_delimiter', ';')
             self.public_display_fields = data.get('public_display_fields', [
-                'result', 'url', 'name', 'pos_links'
+                'pos_result', 'url', 'name', 'pos_links'
             ])
             self.status_types = self.Type(**data.get('status_types', dict(
                 pattern='{name}: {value}',

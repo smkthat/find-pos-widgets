@@ -197,7 +197,7 @@ class WidgetFinder:
                                 f'{pos_link.url}{CONFIG.display.csv_delimiter}{pos_link.status}'
                                 for pos_link in pos_widget.urls
                             ])
-                    elif field == 'result':
+                    elif field == 'pos_result':
                         result_text += str(pos_widget.result)
                     elif field == 'url':
                         result_text += public.url
