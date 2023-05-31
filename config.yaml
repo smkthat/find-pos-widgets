@@ -1,5 +1,5 @@
 vk_api:
-  access_token: 'Provide token here'
+  access_token: ''
   version: 5.131
 parsing:
   max_links_per_widget: 2
@@ -8,27 +8,28 @@ parsing:
   public_data_fields: [ menu, activity, city, contacts, description, members_count, status ]
 progressbar:
   min_interval_per_unit: 0
-display_types:
+display:
   csv_delimiter: ';'
+  public_display_fields: [result, url, id, name, screen_name, pos_links]
   status_types:
-    pattern: '{name}: {value}'
+    pattern: '{name} {value}'
     items:
-      VALID: { name: '✅ Ok', value: 'Correct url' }
-      NOT_MATCH: { name: '❌ Template', value: 'Invalid, url dont match pattern' }
-      UTM_INVALID: { name: '❌ UTM-code', value: 'Invalid UTM code value' }
-      SPACER: { name: '⚠️ Space', value: 'Invalid, url contains spaces' }
+      VALID: { name: '✅', value: 'Ок' }
+      NOT_MATCH: { name: '❌', value: 'Не соответствует шаблону' }
+      UTM_INVALID: { name: '⚠️', value: 'Не правильные значения UTM меток' }
+      SPACER: { name: '⚠️', value: 'В ссылке есть пробел' }
   result_types:
-    pattern: '{name}: {value}'
+    pattern: '{name}'
     items:
-      CORRECT: { name: '✅ Ok', value: 'Widgets exists and urls is correct' }
-      INVALID: { name: '⚠️ Invalid', value: 'Widgets exists and urls NOT valid' }
-      LINKS_COUNT: { name: '❗️Links count', value: 'Incorrect number of widgets' }
-      MISSING: { name: '❌ Missing', value: 'Widgets NOT exists' }
-      TIMEOUT: { name: '⌛️ Timeout', value: 'Timeout when getting url page data' }
-      ERROR: { name: '🆘 Error', value: 'NOT valid url or data parsing errors' }
+      CORRECT: { name: '✅', value: 'Ок' }
+      INVALID: { name: '⚠️', value: 'Есть ошибки в виджетах' }
+      LINKS_COUNT: { name: '❗', value: 'Некорректное число виджетов' }
+      MISSING: { name: '❌', value: 'Отсутствует' }
+      TIMEOUT: { name: '⌛️', value: 'Ошибка получения данных паблика' }
+      ERROR: { name: '🆘', value: 'Ошибка обработки данных паблика' }
 paths:
   log_file: 'runtime.log'
-  target_file: 'target.txt'
+  target_file: 'target_1.txt'
   result_file: 'result.csv'
   save_public_data_dir: 'publics_data'
 exceptions:

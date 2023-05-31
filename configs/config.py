@@ -12,7 +12,7 @@ class Config:
     vk_api: DictConfig
     parsing: 'Parsing'
     progressbar: 'Progressbar'
-    display_types: 'DisplayTypes'
+    display: 'Display'
     paths: 'Paths'
     exceptions: DictConfig
 
@@ -21,7 +21,7 @@ class Config:
         self.vk_api = data.vk_api
         self.parsing = self.Parsing(data.get('parsing'))
         self.progressbar = self.Progressbar(data.get('progressbar'))
-        self.display_types = self.DisplayTypes(data.get('display_types'))
+        self.display = self.Display(data.get('display'))
         self.paths = self.Paths(data.get('paths'))
         self.exceptions = data.get('exceptions')
 
@@ -52,8 +52,9 @@ class Config:
             self.min_interval_per_unit = data.get('min_interval_per_unit', 0.)
 
     @dataclass
-    class DisplayTypes:
+    class Display:
         csv_delimiter: str
+        public_display_fields: list
         status_types: 'Type'
         result_types: 'Type'
 
@@ -71,6 +72,9 @@ class Config:
                 data = {}
 
             self.csv_delimiter = data.get('csv_delimiter', ';')
+            self.public_display_fields = data.get('public_display_fields', [
+                'result', 'url', 'name', 'pos_links'
+            ])
             self.status_types = self.Type(**data.get('status_types', dict(
                 pattern='{name}: {value}',
                 items=dict(

@@ -30,6 +30,20 @@ class WidgetFinder:
         self.publics = {}
         self.__counters = {result_type.name: 0 for result_type in PosWidget.ResultType}
         self.__api = API(access_token=CONFIG.vk_api['access_token'], v=CONFIG.vk_api.get('version', '5.131'))
+        self.csv_header = self.get_csv_header()
+
+    def get_csv_header(self) -> str:
+        header = ''
+        for field in CONFIG.display.public_display_fields:
+            if field == 'pos_links':
+                for i in range(1, CONFIG.parsing.max_links_per_widget + 1):
+                    header += f'pos_link{i}' \
+                              f'{CONFIG.display.csv_delimiter}' \
+                              f'pos_link{i}_status' \
+                              f'{CONFIG.display.csv_delimiter}'
+            else:
+                header += f'{field}{CONFIG.display.csv_delimiter}'
+        return header[:-1]
 
     @property
     def api(self):
@@ -45,17 +59,7 @@ class WidgetFinder:
         print(f'Clearing resources ...')
         open(CONFIG.paths.log_file, 'w', encoding='utf-8').close()
         with open(CONFIG.paths.result_file, 'w', encoding='utf-16') as f:
-            f.write(f'pos_result'
-                    f'{CONFIG.display_types.csv_delimiter}'
-                    f'public_url'
-                    f'{CONFIG.display_types.csv_delimiter}'
-                    f'pos_link1'
-                    f'{CONFIG.display_types.csv_delimiter}'
-                    f'pos_link1_status'
-                    f'{CONFIG.display_types.csv_delimiter}'
-                    f'pos_link2'
-                    f'{CONFIG.display_types.csv_delimiter}'
-                    f'pos_link2_status\n')
+            f.write(self.csv_header)
 
     def read_urls_from_file(self) -> None:
         logger.info('Reading file ...')
@@ -185,23 +189,26 @@ class WidgetFinder:
             pass
         else:
             with open(result_path, 'a', encoding='utf-16') as output:
-                if pos_widget:
-                    pos_links_str = CONFIG.display_types.csv_delimiter.join([
-                        f'{pos_link.url}{CONFIG.display_types.csv_delimiter}{pos_link.status}'
-                        for pos_link in pos_widget.urls
-                    ])
-                    result_text = f'{pos_widget.result}' \
-                                  f'{CONFIG.display_types.csv_delimiter}' \
-                                  f'{public.url}' \
-                                  f'{CONFIG.display_types.csv_delimiter}' \
-                                  f'{pos_links_str}'
-                else:
-                    result_text = f'{PosWidget.ResultType.ERROR}' \
-                                  f'{CONFIG.display_types.csv_delimiter}' \
-                                  f'{public.url}'
+                result_text = '\n'
+                for field in CONFIG.display.public_display_fields:
+                    if field == 'pos_links':
+                        if pos_widget:
+                            result_text += CONFIG.display.csv_delimiter.join([
+                                f'{pos_link.url}{CONFIG.display.csv_delimiter}{pos_link.status}'
+                                for pos_link in pos_widget.urls
+                            ])
+                    elif field == 'result':
+                        result_text += str(pos_widget.result)
+                    elif field == 'url':
+                        result_text += public.url
+                    else:
+                        result_text += str(public.data.get(field, ''))
 
+                    result_text += CONFIG.display.csv_delimiter
+
+                result_text = result_text[:-1]
                 logger.info(f'Save result: {result_text!r}')
-                output.write(result_text + '\n')
+                output.write(result_text)
 
         if CONFIG.parsing.save_public_data and public.data:
             with open(f'{CONFIG.paths.save_public_data_dir}/{public.identify}.json', 'w', encoding='utf-8') as f:
