@@ -483,11 +483,11 @@ Processing complete! See results in './result.csv'
    <br>`deactivate`
 
 ---
-<a name="en-configurations"></a>
+<a name="ru-configurations"></a>
 
-## Configurations
+## Конфигурации
 
-Provided in [config.yaml](config.yaml) file:
+Определены в [config.yaml](config.yaml) файле:
 
 ```yaml
 vk_api:
