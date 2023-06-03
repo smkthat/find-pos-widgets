@@ -287,19 +287,19 @@ exceptions:
 
 #### Not provided UTM codes
 
-```pythonregexp
+```regexp
 REG-CODE|OGRN|ID|MUN-CODE
 ```
 
 #### Spacers
 
-```pythonregexp
+```regexp
 \s|%20
 ```
 
 #### Template
 
-```pythonregexp
+```regexp
 https://pos\.gosuslugi\.ru/(?:form/\?(opaId=\d+)|og/org-activities\?(?:(reg_code=\d{2,8})|(mun_code=\d{8})))&(utm_source=vk|utm_source=vk[12])&(utm_medium=\d{2,4})&(utm_campaign=\d{13})
 ```
 
@@ -612,19 +612,19 @@ exceptions:
 
 #### Не предоставленные коды UTM
 
-```pythonregexp
+```regexp
 REG-CODE|OGRN|ID|MUN-CODE
 ```
 
 #### Разделители
 
-```pythonregexp
+```regexp
 \s|%20
 ```
 
 #### Шаблон
 
-```pythonregexp
+```regexp
 https://pos\.gosuslugi\.ru/(?:form/\?(opaId=\d+)|og/org-activities\?(?:(reg_code=\d{2,8})|(mun_code=\d{8})))&(utm_source=vk|utm_source=vk[12])&(utm_medium=\d{2,4})&(utm_campaign=\d{13})
 ```
 
