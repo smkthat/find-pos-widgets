@@ -38,16 +38,13 @@ class Public:
 
 class PosUrl:
     class Status(enum.Enum):
-        VALID = CONFIG.display_types.status_types.items['VALID']
-        NOT_MATCH = CONFIG.display_types.status_types.items['NOT_MATCH']
-        UTM_INVALID = CONFIG.display_types.status_types.items['UTM_INVALID']
-        SPACER = CONFIG.display_types.status_types.items['SPACER']
+        VALID = CONFIG.display.status_types.items['VALID']
+        NOT_MATCH = CONFIG.display.status_types.items['NOT_MATCH']
+        UTM_INVALID = CONFIG.display.status_types.items['UTM_INVALID']
+        SPACER = CONFIG.display.status_types.items['SPACER']
 
         def __str__(self) -> str:
-            return CONFIG.display_types.status_types.pattern.format(
-                name=self.value.name,
-                value=self.value.value
-            )
+            return CONFIG.display.status_types.pattern.format(**self.value)
 
     def __init__(self, url: str, status: Status = Status.NOT_MATCH):
         self.__url = url
@@ -78,18 +75,15 @@ class PosWidget:
     )
 
     class ResultType(enum.Enum):
-        CORRECT = CONFIG.display_types.result_types.items['CORRECT']
-        INVALID = CONFIG.display_types.result_types.items['INVALID']
-        LINKS_COUNT = CONFIG.display_types.result_types.items['LINKS_COUNT']
-        MISSING = CONFIG.display_types.result_types.items['MISSING']
-        TIMEOUT = CONFIG.display_types.result_types.items['TIMEOUT']
-        ERROR = CONFIG.display_types.result_types.items['ERROR']
+        CORRECT = CONFIG.display.result_types.items['CORRECT']
+        INVALID = CONFIG.display.result_types.items['INVALID']
+        LINKS_COUNT = CONFIG.display.result_types.items['LINKS_COUNT']
+        MISSING = CONFIG.display.result_types.items['MISSING']
+        TIMEOUT = CONFIG.display.result_types.items['TIMEOUT']
+        ERROR = CONFIG.display.result_types.items['ERROR']
 
         def __str__(self) -> str:
-            return CONFIG.display_types.result_types.pattern.format(
-                name=self.value.name,
-                value=self.value.value
-            )
+            return CONFIG.display.result_types.pattern.format(**self.value)
 
     urls: List[PosUrl]
     result: ResultType

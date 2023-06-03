@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import List, Dict
 
 from omegaconf import OmegaConf, DictConfig
 
@@ -9,69 +10,136 @@ CONFIG_PATH = get_path('config.yaml')
 
 @dataclass
 class Config:
-    vk_api: DictConfig
-    parsing: 'Parsing'
-    progressbar: 'Progressbar'
-    display_types: 'DisplayTypes'
-    paths: 'Paths'
-    exceptions: DictConfig
+    _vk_api: DictConfig
+    _parsing: 'Parsing'
+    _progressbar: 'Progressbar'
+    _display: 'Display'
+    _paths: 'Paths'
+    _exceptions: DictConfig
 
-    def __init__(self):
-        data = OmegaConf.load(CONFIG_PATH)
-        self.vk_api = data.vk_api
-        self.parsing = self.Parsing(data.get('parsing'))
-        self.progressbar = self.Progressbar(data.get('progressbar'))
-        self.display_types = self.DisplayTypes(data.get('display_types'))
-        self.paths = self.Paths(data.get('paths'))
-        self.exceptions = data.get('exceptions')
+    @property
+    def vk_api(self) -> DictConfig:
+        return self._vk_api
+
+    @property
+    def parsing(self) -> 'Parsing':
+        return self._parsing
+
+    @property
+    def progressbar(self) -> 'Progressbar':
+        return self._progressbar
+
+    @property
+    def display(self) -> 'Display':
+        return self._display
+
+    @property
+    def paths(self) -> 'Paths':
+        return self._paths
+
+    @property
+    def exceptions(self) -> DictConfig:
+        return self._exceptions
+
+    def __init__(self, data: DictConfig) -> None:
+        self._vk_api = data.vk_api
+        self._parsing = self.Parsing(data.get('parsing'))
+        self._progressbar = self.Progressbar(data.get('progressbar'))
+        self._display = self.Display(data.get('display'))
+        self._paths = self.Paths(data.get('paths'))
+        self._exceptions = data.get('exceptions')
 
     @dataclass
     class Parsing:
-        max_links_per_widget: int
-        skip_correct: bool
-        save_public_data: bool
-        public_data_fields: list
+        _max_links_per_widget: int
+        _skip_correct: bool
+        _save_public_data: bool
+        _public_data_fields: list
 
-        def __init__(self, data: DictConfig = None):
+        @property
+        def max_links_per_widget(self) -> int:
+            return self._max_links_per_widget
+
+        @property
+        def skip_correct(self) -> bool:
+            return self._skip_correct
+
+        @property
+        def save_public_data(self) -> bool:
+            return self._save_public_data
+
+        @property
+        def public_data_fields(self) -> List[str]:
+            return self._public_data_fields
+
+        def __init__(self, data: DictConfig = None) -> None:
             if not data:
                 data = {}
 
-            self.max_links_per_widget = data.get('max_links_per_widget', 0)
-            self.skip_correct = data.get('skip_correct', False)
-            self.save_public_data = data.get('save_public_data', True)
-            self.public_data_fields = data.get('fields', ['menu'])
+            self._max_links_per_widget = data.get('max_links_per_widget', 0)
+            self._skip_correct = data.get('skip_correct', False)
+            self._save_public_data = data.get('save_public_data', True)
+            self._public_data_fields = data.get('fields', ['menu'])
 
     @dataclass
     class Progressbar:
         min_interval_per_unit: float
 
-        def __init__(self, data: DictConfig):
+        def __init__(self, data: DictConfig) -> None:
             if not data:
                 data = {}
 
             self.min_interval_per_unit = data.get('min_interval_per_unit', 0.)
 
     @dataclass
-    class DisplayTypes:
-        csv_delimiter: str
-        status_types: 'Type'
-        result_types: 'Type'
+    class Display:
+        _csv_delimiter: str
+        _public_display_fields: list
+        _status_types: 'Type'
+        _result_types: 'Type'
+
+        @property
+        def csv_delimiter(self) -> str:
+            return self._csv_delimiter
+
+        @property
+        def public_display_fields(self) -> List[str]:
+            return self._public_display_fields
+
+        @property
+        def status_types(self) -> 'Type':
+            return self._status_types
+
+        @property
+        def result_types(self) -> 'Type':
+            return self._result_types
 
         @dataclass
         class Type:
-            pattern: str
-            items: dict
+            _pattern: str
+            _items: dict
+
+            @property
+            def pattern(self) -> str:
+                return self._pattern
+
+            @property
+            def items(self) -> Dict:
+                return self._items
 
             def __init__(self, pattern: str, items: dict):
-                self.pattern = pattern
-                self.items = items
+                self._pattern = pattern
+                self._items = items
 
-        def __init__(self, data: DictConfig):
+        def __init__(self, data: DictConfig) -> None:
             if not data:
                 data = {}
 
-            self.csv_delimiter = data.get('csv_delimiter', ';')
-            self.status_types = self.Type(**data.get('status_types', dict(
+            self._csv_delimiter = data.get('csv_delimiter', ';')
+            self._public_display_fields = data.get('public_display_fields', [
+                'pos_result', 'url', 'name', 'pos_links'
+            ])
+            self._status_types = self.Type(**data.get('status_types', dict(
                 pattern='{name}: {value}',
                 items=dict(
                     VALID=dict(name='Correct', value=''),
@@ -80,7 +148,7 @@ class Config:
                     SPACER=dict(name='Invalid, url contains spaces', value='')
                 )
             )))
-            self.result_types = self.Type(**data.get('result_types', dict(
+            self._result_types = self.Type(**data.get('result_types', dict(
                 pattern='{name}',
                 items=dict(
                     CORRECT=dict(name='Widgets exists and urls is correct', value=''),
@@ -94,19 +162,35 @@ class Config:
 
     @dataclass
     class Paths:
-        log_file: str
-        target_file: str
-        result_file: str
-        save_public_data_dir: str
+        _log_file: str
+        _target_file: str
+        _result_file: str
+        _save_public_data_dir: str
 
-        def __init__(self, data: DictConfig):
+        @property
+        def log_file(self) -> str:
+            return self._log_file
+
+        @property
+        def target_file(self) -> str:
+            return self._target_file
+
+        @property
+        def result_file(self) -> str:
+            return self._result_file
+
+        @property
+        def save_public_data_dir(self) -> str:
+            return self._save_public_data_dir
+
+        def __init__(self, data: DictConfig) -> None:
             if not data:
                 data = {}
 
-            self.log_file = get_path(data.get('log_file', 'runtime.log'))
-            self.target_file = get_path(data.get('target_file', 'target.txt'))
-            self.result_file = get_path(data.get('result_file', 'result.csv'))
-            self.save_public_data_dir = get_path(data.get('save_public_data_dir', 'publics_data'))
+            self._log_file = get_path(data.get('log_file', 'runtime.log'))
+            self._target_file = get_path(data.get('target_file', 'target.txt'))
+            self._result_file = get_path(data.get('result_file', 'result.csv'))
+            self._save_public_data_dir = get_path(data.get('save_public_data_dir', 'publics_data'))
 
 
-CONFIG = Config()
+CONFIG = Config(data=OmegaConf.load(CONFIG_PATH))
