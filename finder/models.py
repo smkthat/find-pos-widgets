@@ -44,10 +44,7 @@ class PosUrl:
         SPACER = CONFIG.display.status_types.items['SPACER']
 
         def __str__(self) -> str:
-            return CONFIG.display.status_types.pattern.format(
-                name=self.value.name,
-                value=self.value.value
-            )
+            return CONFIG.display.status_types.pattern.format(**self.value)
 
     def __init__(self, url: str, status: Status = Status.NOT_MATCH):
         self.__url = url
@@ -86,10 +83,7 @@ class PosWidget:
         ERROR = CONFIG.display.result_types.items['ERROR']
 
         def __str__(self) -> str:
-            return CONFIG.display.result_types.pattern.format(
-                name=self.value.name,
-                value=self.value.value
-            )
+            return CONFIG.display.result_types.pattern.format(**self.value)
 
     urls: List[PosUrl]
     result: ResultType
