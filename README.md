@@ -38,7 +38,6 @@
   </ol>
 </details>
 
----
 <a name="en-about"></a>
 
 ## About
@@ -78,7 +77,6 @@ Processing complete! See results in './result.csv'
 - `UTM_INVALID` - Invalid UTM code value
 - `SPACER` - Invalid, url contains spaces
 
----
 <a name="en-deployment"></a>
 
 ## Deployment
@@ -153,11 +151,10 @@ Processing complete! See results in './result.csv'
 #### Stopping:
 
 1. For stopping script use keys:
-   <br>`ctrl` + `c`
+   <br/>`ctrl` + `c`
 2. For close env use command:
-   <br>`deactivate`
+   <br/>`deactivate`
 
----
 <a name="en-configurations"></a>
 
 ## Configurations
@@ -280,7 +277,6 @@ exceptions:
 | `max_tries` | `intager` |   `5`   | Number of attempts to get data                                           |  
 |  `timeout`  | `float`   |   `5`   | Waiting between attempts<br/>_(multiplied by the number of `max_tries`)_ |  
 
----
 <a name="en-widget-regexes"></a>
 
 ## Widget url regexes
@@ -303,7 +299,6 @@ REG-CODE|OGRN|ID|MUN-CODE
 https://pos\.gosuslugi\.ru/(?:form/\?(opaId=\d+)|og/org-activities\?(?:(reg_code=\d{2,8})|(mun_code=\d{8})))&(utm_source=vk|utm_source=vk[12])&(utm_medium=\d{2,4})&(utm_campaign=\d{13})
 ```
 
----
 <a name="en-requirements"></a>
 
 ## Requirements
@@ -316,9 +311,10 @@ https://pos\.gosuslugi\.ru/(?:form/\?(opaId=\d+)|og/org-activities\?(?:(reg_code
     vk==3.0
     ```
 
-<br>
-<br>
-<br>
+<br/>
+---
+<br/>
+
 
 <a name="ru"></a>
 
@@ -362,7 +358,7 @@ https://pos\.gosuslugi\.ru/(?:form/\?(opaId=\d+)|og/org-activities\?(?:(reg_code
   </ol>
 </details>
 
----
+
 <a name="ru-about"></a>
 
 ## Описание
@@ -403,7 +399,6 @@ Processing complete! See results in './result.csv'
 - `UTM_INVALID` - Неверное значение кода UTM
 - `SPACER` - Неверный URL-адрес, содержит пробелы
 
----
 <a name="ru-deployment"></a>
 
 ## Развертывание
@@ -478,11 +473,10 @@ Processing complete! See results in './result.csv'
 #### Остановка:
 
 1. Для остановки скрипта используйте сочетание клавиш:
-   <br>`ctrl` + `c`
+   <br/>`ctrl` + `c`
 2. Для закрытия окружения используйте команду:
-   <br>`deactivate`
+   <br/>`deactivate`
 
----
 <a name="ru-configurations"></a>
 
 ## Конфигурации
@@ -605,7 +599,6 @@ exceptions:
 | `max_tries` | `intager` |          `5`          | Количество попыток получения данных                                   |  
 |  `timeout`  |  `float`  |         `5.`          | Ожидание между попытками<br/>_(умножается на количество `max_tries`)_ |  
 
----
 <a name="ru-widget-regexes"></a>
 
 ## Регулярные выражения URL-адресов виджетов
@@ -628,7 +621,6 @@ REG-CODE|OGRN|ID|MUN-CODE
 https://pos\.gosuslugi\.ru/(?:form/\?(opaId=\d+)|og/org-activities\?(?:(reg_code=\d{2,8})|(mun_code=\d{8})))&(utm_source=vk|utm_source=vk[12])&(utm_medium=\d{2,4})&(utm_campaign=\d{13})
 ```
 
----
 <a name="ru-requirements"></a>
 
 ## Требования
