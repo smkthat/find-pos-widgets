@@ -10,7 +10,8 @@ progressbar:
   min_interval_per_unit: 0
 display:
   csv_delimiter: ';'
-  public_display_fields: [result, url, id, name, screen_name, pos_links]
+  public_display_fields: [pos_result, url, id, name, screen_name, pos_links]
+  show_utm_status: true
   status_types:
     pattern: '{name} {value}'
     items:
