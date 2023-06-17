@@ -61,5 +61,5 @@ paths:
   # - xlsx
   # - json
   # - html
-  result_file: 'result.json'
+  result_file: 'result.xlsx'
   save_public_data_dir: 'publics_data'
