@@ -1,6 +1,6 @@
 vk_api:
   # VK API access token
-  access_token: 'e26979bde26979bde26979bdcee17b333aee269e26979bd81a09517bfc330fa50bdd941'
+  access_token: 'Provide your token here'
 parsing:
   # Counts of POS widgets
   max_links_per_widget: 2
