@@ -5,10 +5,12 @@ import unicodedata
 from typing import Set, Dict, List
 from urllib.parse import urlparse
 
+from pandas import DataFrame
 from tqdm import tqdm
 from vk import API
 from vk.exceptions import VkAPIError
 from requests.exceptions import ConnectionError
+import pandas as pd
 
 from configs import CONFIG
 from configs import get_logger
@@ -24,26 +26,25 @@ class WidgetFinder:
     urls: Set[str]
     publics: Dict[str, Public]
     __api: API
+    file_format: str
 
     def __init__(self):
         self.urls = set()
         self.publics = {}
         self.__counters = {result_type.name: 0 for result_type in PosWidget.ResultType}
         self.__api = API(access_token=CONFIG.vk_api['access_token'], v=CONFIG.vk_api.get('version', '5.131'))
-        self.csv_header = self.get_csv_header()
+        self.file_format = self.get_file_format()
 
-    def get_csv_header(self) -> str:
-        header = ''
-        for field in CONFIG.display.public_display_fields:
-            if field == 'pos_links':
-                for i in range(1, CONFIG.parsing.max_links_per_widget + 1):
-                    header += f'pos_link{i}' \
-                              f'{CONFIG.display.csv_delimiter}' \
-                              f'pos_link{i}_status' \
-                              f'{CONFIG.display.csv_delimiter}'
-            else:
-                header += f'{field}{CONFIG.display.csv_delimiter}'
-        return header[:-1]
+    def get_file_format(self) -> str:
+        try:
+            file_format = CONFIG.paths.result_file.split('.', maxsplit=1)[1]
+            if file_format not in ['csv', 'xlsx', 'json', 'html', 'md']:
+                raise ValueError(f'Unsupported format for file {CONFIG.paths.result_file!r}')
+        except IndexError:
+            file_format = 'xlsx'
+            logger.info('Format of the result file dont provided, set "xlsx" as default')
+
+        return file_format
 
     @property
     def api(self):
@@ -53,13 +54,12 @@ class WidgetFinder:
         self.clear_resources()
         self.read_urls_from_file()
         self.process_publics()
+        self.save_results()
 
     def clear_resources(self) -> None:
         logger.info(f'Clearing resources ...')
         print(f'Clearing resources ...')
         open(CONFIG.paths.log_file, 'w', encoding='utf-8').close()
-        with open(CONFIG.paths.result_file, 'w', encoding='utf-16') as f:
-            f.write(self.csv_header)
 
     def read_urls_from_file(self) -> None:
         logger.info('Reading file ...')
@@ -129,7 +129,6 @@ class WidgetFinder:
                         else:
                             public: Public = public_data
 
-                        self.__save_results_to_file(public)
                         self.__increment_counter(public.pos_widget.result)
 
                         pbar.set_postfix(self.__counters)
@@ -146,7 +145,7 @@ class WidgetFinder:
             self,
             group_identifies: List[str],
             tries: int = 0,
-            timeout: int = CONFIG.exceptions.get('connection', {}).get('timeout', 5)
+            timeout: int = CONFIG.exceptions.connection.get('timeout', 5)
     ) -> List[dict]:
         group_ids = ','.join(group_identifies)
         fields = CONFIG.parsing.public_data_fields
@@ -183,36 +182,64 @@ class WidgetFinder:
     def __increment_counter(self, counter_type: PosWidget.ResultType) -> None:
         self.__counters[counter_type.name] += 1
 
-    def __save_results_to_file(self, public: Public, result_path: str = 'result.csv') -> None:
-        pos_widget = public.pos_widget
-        if CONFIG.parsing.skip_correct and pos_widget.result is PosWidget.ResultType.CORRECT:
-            pass
-        else:
-            with open(result_path, 'a', encoding='utf-16') as output:
-                result_text = '\n'
-                for field in CONFIG.display.public_display_fields:
-                    if field == 'pos_links':
-                        if pos_widget:
-                            result_text += CONFIG.display.csv_delimiter.join([
-                                f'{pos_link.url}{CONFIG.display.csv_delimiter}{pos_link.status}'
-                                for pos_link in pos_widget.urls
-                            ])
-                    elif field == 'pos_result':
-                        result_text += str(pos_widget.result)
-                    elif field == 'url':
-                        result_text += public.url
-                    else:
-                        result_text += str(public.data.get(field, ''))
+    def save_results(self) -> None:
+        max_links_per_widget = 0
+        for public in self.publics.values():
+            pos_widget = public.pos_widget
+            if pos_widget and len(pos_widget.urls) > max_links_per_widget:
+                max_links_per_widget = len(pos_widget.urls)
 
-                    result_text += CONFIG.display.csv_delimiter
+        data = []
+        columns = []
+        for field in CONFIG.display.public_display_fields:
+            if field == 'pos_links':
+                for i in range(max_links_per_widget):
+                    columns.extend([f'pos_url-{i + 1}',
+                                    f'pos_url_status-{i + 1}',
+                                    f'url_utm_codes-{i + 1}'])
+            else:
+                columns.append(field)
 
-                result_text = result_text[:-1]
-                logger.info(f'Save result: {result_text!r}')
-                output.write(result_text)
+        for public in self.publics.values():
+            pos_widget = public.pos_widget
+            if CONFIG.parsing.skip_correct and pos_widget.result is PosWidget.ResultType.CORRECT:
+                continue
 
-        if CONFIG.parsing.save_public_data and public.data:
-            with open(f'{CONFIG.paths.save_public_data_dir}/{public.identify}.json', 'w', encoding='utf-8') as f:
-                json.dump(public.data, f, ensure_ascii=False)
+            row = []
+            for field in CONFIG.display.public_display_fields:
+                if field == 'pos_links':
+                    if pos_widget:
+                        for i in range(max_links_per_widget):
+                            if i < len(pos_widget.urls):
+                                pos_link = pos_widget.urls[i]
+                                row.extend([
+                                    pos_link.url,
+                                    str(pos_link.status_type),
+                                    '\n'.join([str(code) for code in pos_link.utm_codes.values()])
+                                ])
+                            else:
+                                row.extend([''] * 3)
+                elif field == 'pos_result':
+                    row.append(str(pos_widget.result))
+                elif field == 'url':
+                    row.append(public.url)
+                else:
+                    row.append(str(public.data.get(field, '')))
+
+            data.append(row)
+
+        df = pd.DataFrame(data, columns=columns)
+        self.save_data(df)
+
+    def save_data(self, df: DataFrame):
+        if self.file_format == 'csv':
+            df.to_csv(CONFIG.paths.result_file, sep=CONFIG.display.csv_delimiter, index=False, encoding='utf-16')
+        if self.file_format == 'xlsx':
+            df.to_excel(CONFIG.paths.result_file, index=False)
+        if self.file_format == 'json':
+            df.to_json(CONFIG.paths.result_file, orient='table', index=False, indent=4, force_ascii=False)
+        if self.file_format == 'html':
+            df.to_html(CONFIG.paths.result_file, index=False, encoding='utf-16')
 
     def clean_urls(self, urls: List[str]) -> Set[str]:
         return {self.clean_url(url) for url in urls}

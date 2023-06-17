@@ -38,7 +38,7 @@ class Config:
         return self._paths
 
     @property
-    def exceptions(self) -> DictConfig:
+    def exceptions(self) -> 'Exceptions':
         return self._exceptions
 
     def __init__(self, data: DictConfig) -> None:
@@ -47,7 +47,7 @@ class Config:
         self._progressbar = self.Progressbar(data.get('progressbar'))
         self._display = self.Display(data.get('display'))
         self._paths = self.Paths(data.get('paths'))
-        self._exceptions = data.get('exceptions')
+        self._exceptions = self.Exceptions(data.get('exceptions'))
 
     @dataclass
     class Parsing:
@@ -95,6 +95,8 @@ class Config:
     class Display:
         _csv_delimiter: str
         _public_display_fields: list
+        _show_utm_status: bool
+        _codes_hints: 'Type'
         _status_types: 'Type'
         _result_types: 'Type'
 
@@ -105,6 +107,14 @@ class Config:
         @property
         def public_display_fields(self) -> List[str]:
             return self._public_display_fields
+
+        @property
+        def show_utm_status(self) -> bool:
+            return self._show_utm_status
+
+        @property
+        def codes_hints(self) -> 'Type':
+            return self._codes_hints
 
         @property
         def status_types(self) -> 'Type':
@@ -139,6 +149,18 @@ class Config:
             self._public_display_fields = data.get('public_display_fields', [
                 'pos_result', 'url', 'name', 'pos_links'
             ])
+            self._show_utm_status = data.get('show_utm_status', True)
+            self._codes_hints = self.Type(**data.get('codes_hints', dict(
+                pattern='{param}={value} ({code}: {hint})',
+                items=dict(
+                    ID='Only digits expected',
+                    REG_CODE='Only 2 digits expected or one from this values: 111, 711, 7114',
+                    MIN_CODE='Only 8 digits expected',
+                    OGRN='Only 13 digits',
+                    SOURCE='Only one from this values expected: vk, vk1, vk2',
+                    UNDEFINED='Undefined UTM-code'
+                )
+            )))
             self._status_types = self.Type(**data.get('status_types', dict(
                 pattern='{name}: {value}',
                 items=dict(
@@ -191,6 +213,23 @@ class Config:
             self._target_file = get_path(data.get('target_file', 'target.txt'))
             self._result_file = get_path(data.get('result_file', 'result.csv'))
             self._save_public_data_dir = get_path(data.get('save_public_data_dir', 'publics_data'))
+
+    @dataclass
+    class Exceptions:
+        _connection: Dict
+
+        @property
+        def connection(self) -> Dict:
+            return self._connection
+
+        def __init__(self, data: DictConfig) -> None:
+            if not data:
+                data = {}
+
+            self._connection = data.get('connection', dict(
+                max_tries=5,
+                timeout=5
+            ))
 
 
 CONFIG = Config(data=OmegaConf.load(CONFIG_PATH))

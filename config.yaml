@@ -1,17 +1,41 @@
 vk_api:
-  access_token: ''
-  version: 5.131
+  # VK API access token
+  access_token: 'e26979bde26979bde26979bdcee17b333aee269e26979bd81a09517bfc330fa50bdd941'
 parsing:
+  # Counts of POS widgets
   max_links_per_widget: 2
+  # The correct URLs of the entries in the resulting file are not displayed
   skip_correct: false
+  # Save the full public data in other file
   save_public_data: true
+  # Fields to get from the VK API request:
+  # - menu: required field to find POS widgets
+  # ... other VK API fields
   public_data_fields: [ menu, activity, city, contacts, description, members_count, status ]
-progressbar:
-  min_interval_per_unit: 0
 display:
   csv_delimiter: ';'
-  public_display_fields: [pos_result, url, id, name, screen_name, pos_links]
+  # Fields for which will be in the results file
+  public_display_fields: [ pos_result, url, id, name, screen_name, pos_links ]
+  # Whether to show detailed error information in UTM-tags
   show_utm_status: true
+  codes_hints:
+    # Fields for the template for displaying the results of checking UTM tags:
+    # - code - code designation
+    # - param - UTM-label
+    # - value - UTM tag value
+    # - pattern - verification pattern
+    # - hint - expected value
+    # - is_valid - validation result:
+    #     True - passed validation
+    #     False - failed verification
+    pattern: '{is_valid} {param}={value} ({hint}, pattern: {pattern})'
+    items:
+      ID: 'Only digits'
+      REG-CODE: 'Only 2 digits or one of the values: 111, 711, 7114'
+      MUN-CODE: 'Only 8 digits'
+      OGRN: 'Only 13 digits'
+      SOURCE: 'Only one of the values: vk, vk1, vk2'
+      UNDEFINED: 'Undefined UTM-code'
   status_types:
     pattern: '{name} {value}'
     items:
@@ -19,6 +43,7 @@ display:
       NOT_MATCH: { name: '❌', value: 'Не соответствует шаблону' }
       UTM_INVALID: { name: '⚠️', value: 'Не правильные значения UTM меток' }
       SPACER: { name: '⚠️', value: 'В ссылке есть пробел' }
+      UNDEFINED: {name: '❌', value: 'Undefined URL'}
   result_types:
     pattern: '{name}'
     items:
@@ -30,10 +55,11 @@ display:
       ERROR: { name: '🆘', value: 'Ошибка обработки данных паблика' }
 paths:
   log_file: 'runtime.log'
-  target_file: 'target_1.txt'
-  result_file: 'result.csv'
+  target_file: 'target.txt'
+  # Available formats for result_file:
+  # - csv
+  # - xlsx
+  # - json
+  # - html
+  result_file: 'result.json'
   save_public_data_dir: 'publics_data'
-exceptions:
-  connection:
-    max_tries: 5
-    timeout: 5
