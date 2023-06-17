@@ -10,6 +10,7 @@
       <ul>
         <li><a href="#en-result-types">POS result types</a></li>
         <li><a href="#en-url-statuses">POS url statuses</a></li>
+        <li><a href="#en-utm-conditions">UTM-code conditions</a></li>
       </ul>
     </li>
     <li>
@@ -43,7 +44,7 @@
 ## About
 
 Finds installed POS widgets on the public vk page and checks their URLs for compliance with templates with UTM tags.
-<br/>The results are written on the fly to the file specified in the configuration file.
+<br/>The results are written to the file specified in the configuration file.
 
 <a name="en-result-types"></a>
 
@@ -65,7 +66,7 @@ Prepare publics from links ...
 Number of links found: 3319
 Start processing:
 Processing: 100%|████████████| 3319/3319 [00:37<00:00, 88.23url/s, CORRECT=963, INVALID=1968, MISSING=388, TIMEOUT=0, ERROR=0]
-Processing complete! See results in './result.csv'
+Processing complete! See results in './result.xlsx'
 ```
 
 <a name="en-url-statuses"></a>
@@ -76,6 +77,35 @@ Processing complete! See results in './result.csv'
 - `NOT_MATCH` - Invalid, url don't match pattern
 - `UTM_INVALID` - Invalid UTM code value
 - `SPACER` - Invalid, url contains spaces
+- `UNDEFINED` - Undefined POS url
+
+<a name="en-utm-conditions"></a>
+
+### Conditions for checking UTM-codes of POS url
+
+Return a validation result `True` or `False`
+
+- `ID`: Only digits
+  ```regex
+  \d+
+  ```
+- `REG-CODE`: Only 2 digits or one of the values: `111`, `711`, `7114`
+   ```regex
+   \d{2}|111|711|7114
+   ```
+- `MUN-CODE`: Only 8 digits
+   ```regex
+   \d{8}
+   ```
+- `OGRN`: Only 13 digits
+   ```regex
+   \d{13}
+   ```
+- `SOURCE`: Only one of the values: `vk`, `vk1`, `vk2`
+   ```regex
+   vk|vk1|vk2
+   ```
+- `UNDEFINED`: Undefined UTM-code
 
 <a name="en-deployment"></a>
 
@@ -175,6 +205,16 @@ progressbar:
 display:
   csv_delimiter: ';'
   public_display_fields: [ pos_result, url, id, name, screen_name, pos_links, description ]
+  show_utm_status: true
+  codes_hints:
+    pattern: '{is_valid} {param}={value} ({hint}, pattern: {pattern})'
+    items:
+      ID: 'Only digits'
+      REG-CODE: 'Only 2 digits or one of the values: 111, 711, 7114'
+      MUN-CODE: 'Only 8 digits'
+      OGRN: 'Only 13 digits'
+      SOURCE: 'Only one of the values: vk, vk1, vk2'
+      UNDEFINED: 'Undefined UTM-code'
   status_types:
     pattern: '{name}'
     items:
@@ -182,6 +222,7 @@ display:
       NOT_MATCH: { name: '❌', value: 'Invalid, url dont match pattern' }
       UTM_INVALID: { name: '⚠️', value: 'Invalid UTM code value' }
       SPACER: { name: '⚠️', value: 'Invalid, url contains spaces' }
+      UNDEFINED: 'Undefined POS url'
   result_types:
     pattern: '{name}: {value}'
     items:
@@ -194,7 +235,7 @@ display:
 paths:
   log_file: 'runtime.log'
   target_file: 'target.txt'
-  result_file: 'result.csv'
+  result_file: 'result.xlsx'
   save_public_data_dir: 'publics_data'
 exceptions:
   connection:
@@ -240,22 +281,20 @@ exceptions:
 
 ### Display
 
-|                   Param                   |     Type     |                             Default                             | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-|:-----------------------------------------:|:------------:|:---------------------------------------------------------------:|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-|              `csv_delimiter`              |   `string`   |                               `;`                               | Delimiter for result csv file                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-|          `public_display_fields`          |    `list`    | [`pos_result`, `url`, `name`, `pos_links`, `id`, `screen_name`] | Select fields to display in result csv file (with the preservation of order)<br/><br/>**Variables**:<br/><ul><li>`pos_result` - (Default) POS widgets parsing result type</li><li>`url` - (Default) Target public url</li><li>`name` - (Default) Parsed public name</li><li>`pos_links` - (Default) POS links checking status</li><li>`id` - Parsed public id</li><li>`screen_name` - Parsed public screen_name</li><li>... include more from `parsing.public_data_fields`</li></ul> |
-| `result_types`<br/>and<br/>`status_types` | `dictionary` |                                -                                | Here you can specify the values to display in the pattern results file<br/><br/>Use any variables, such as `name`, `value`, or others. Then provide a `pattern` to determine how it will be provided<br/><br/>**Example for `status_type`:**<br/><pre>{"name": "✅", "value": "Correct urls"}<br/>pattern = "{name}: {value}"</pre>display: `✅: Correct urls`                                                                                                                         |
+|                   Param                   |     Type     |                             Default                             | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+|:-----------------------------------------:|:------------:|:---------------------------------------------------------------:|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+|              `csv_delimiter`              |   `string`   |                               `;`                               | Delimiter for result csv file                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+|          `public_display_fields`          |    `list`    | [`pos_result`, `url`, `name`, `pos_links`, `id`, `screen_name`] | Select fields to display in result csv file (with the preservation of order)<br/><br/>**Variables**:<br/><ul><li>`pos_result` - (Default) POS widgets parsing result type</li><li>`url` - (Default) Target public url</li><li>`name` - (Default) Parsed public name</li><li>`pos_links` - (Default) POS links checking status</li><li>`id` - Parsed public id</li><li>`screen_name` - Parsed public screen_name</li><li>... include more from `parsing.public_data_fields`</li></ul>                                                                                                                                                                   |
+|             `show_utm_status`             |  `boolean`   |                             `true`                              | Whether to show detailed error information in UTM-tags                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+|               `codes_hints`               | `dictionary` |                                -                                | Here you can specify the values to display in the pattern results file<br/><br/>Use variables and provide a `pattern` to determine how it will be provided<br/><br/>**Variables:**<br/>`code` - (string) Code designation<br/>`param` - (string) UTM-label<br/>`value` - (string) UTM-code value<br/>`pattern` - (string) Verification pattern<br/>`hint` - (string) Hint of expected value<br/>`is_valid` - (boolean) Validation result<br/><br/>**Example:**<br/><pre>pattern = "[{is_valid}] {param}={value} ({hint}, pattern: {pattern})"</pre>display: `True: utm_source='vk' ('Only one of the values: vk, vk1, vk2', pattern: 'vk1\|vk2\|vk3')` |
+| `result_types`<br/>and<br/>`status_types` | `dictionary` |                                -                                | Here you can specify the values to display in the pattern results file<br/><br/>Use any variables, such as `name`, `value`, or others. Then provide a `pattern` to determine how it will be provided<br/><br/>**Example for `status_type`:**<br/><pre>{"name": "✅", "value": "Correct urls"}<br/>pattern = "{name}: {value}"</pre>display: `✅: Correct urls`                                                                                                                                                                                                                                                                                           |
 
-##### Output result csv file example:
+##### Output result xlsx file example:
 
-  ```
-  pos_result;url;name;pos_link1;pos_link1_status;pos_link2;pos_link2_status;id;screen_name
-  ✅;https://vk.com/public123;Public 123;https://pos.gosuslugi.ru/og/org-activities?.....;✅: Correct urls;https://pos.gosuslugi.ru/form/?.....;✅: Correct urls;32242414124;public123
-  ⚠️;https://vk.com/best_public_ever;Best public ever;https://pos.gosuslugi.ru/og/org-activities?.....;⚠️: Invalid UTM code value;https://pos.gosuslugi.ru/abcdf/?.....;❌: Invalid, url dont match pattern;98127468127;best_public_ever
-  ❗;https://vk.com/club321;Clubbers 321;https://pos.gosuslugi.ru/form/?.....;✅: Correct urls;;;667678689;public667678689
-  ❌;https://vk.com/club12345678;Club 12345678;;;;12345678;club12345678
-  ...
-  ```
+| pos_result | url                           |       id | name               | screen_name  | pos_url-0                                                                                          | pos_url_status-1 | url_utm_codes-1                                                                                                                                                                                                                                                                                                                                          | ... |
+|:-----------|:------------------------------|---------:|:-------------------|:-------------|:---------------------------------------------------------------------------------------------------|:-----------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----|
+| ✅          | https://vk.com/public12345678 | 12345678 | Name of the public | club12345678 | https://pos.gosuslugi.ru/form/?opaId=123456&utm_source=vk&utm_medium=11&utm_campaign=1234567890123 | ✅ Ок             | [True]() opaId='223186' (Only digits, pattern: '\\d+')<br/>[True]() utm_source='vk' (Only one of the values: vk, vk1, vk2, pattern: 'vk\|vk1\|vk2')<br/>[True]() utm_medium='44' (Only 2 digits or one of the values: 111, 711, 7114, pattern: '\\d{2}\|111\\|711\|7114')<br/>[True]() utm_campaign='1024900965088' (Only 13 digits, pattern: '\\d{13}') | ... |
+| ❌          | https://vk.com/best_public    | 87654321 | Best public ever   | best_public  |                                                                                                    |                  |                                                                                                                                                                                                                                                                                                                                                          | ... |
 
 <a name="en-paths"></a>
 
@@ -265,8 +304,8 @@ exceptions:
 |:----------------------:|----------|:--------------:|------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 |       `log_file`       | `string` | `runtime.log`  | Path to runtime log file                                                                                                                                         |
 |     `target_file`      | `string` |  `target.txt`  | Path to target file with urls                                                                                                                                    |
-|     `result_file`      | `string` |  `result.csv`  | Path to result file                                                                                                                                              |
-| `save_public_data_dir` | `string` | `publics_data` | The path to the directory when saving the parsed data of the VK group to a json file<br/><br/>_If `parsing.save_public_data` is `false` - data don't been saved_ |
+|     `result_file`      | `string` | `result.xlsx`  | Path to result file, default file format is `xlsx`.<br/><br/>_Available formats: `csv`, `xlsx`, `json`, `html`._                                                 |
+| `save_public_data_dir` | `string` | `publics_data` | The path to the directory when saving the parsed data of the VK group to a JSON file<br/><br/>_If `parsing.save_public_data` is `false` - data don't been saved_ |
 
 <a name="en-exceptions"></a>
 
@@ -309,6 +348,9 @@ https://pos\.gosuslugi\.ru/(?:form/\?(opaId=\d+)|og/org-activities\?(?:(reg_code
     omegaconf==2.3.0
     tqdm==4.65.0
     vk==3.0
+    openpyxl==3.1.2
+    pandas~=2.0.2
+    requests~=2.31.0
     ```
 
 <br/>
@@ -330,6 +372,7 @@ https://pos\.gosuslugi\.ru/(?:form/\?(opaId=\d+)|og/org-activities\?(?:(reg_code
       <ul>
         <li><a href="#ru-result-types">Типы результатов POS</a></li>
         <li><a href="#ru-url-statuses">Статусы URL POS</a></li>
+        <li><a href="#ru-utm-conditions">Условия проверки UTM-кода POS</a></li>
       </ul>
     </li>
     <li>
@@ -365,7 +408,7 @@ https://pos\.gosuslugi\.ru/(?:form/\?(opaId=\d+)|og/org-activities\?(?:(reg_code
 
 Находит установленные виджеты POS на общедоступной странице ВКонтакте и проверяет их URL-адреса на соответствие шаблонам
 с метками UTM.
-<br/>Результаты записываются непосредственно в csv файл, указанный в файле конфигурации.
+<br/>Результаты записываются в файл, указанный в файле конфигурации.
 
 <a name="ru-result-types"></a>
 
@@ -387,7 +430,7 @@ Prepare publics from links ...
 Number of links found: 3319
 Start processing:
 Processing: 100%|████████████| 3319/3319 [00:37<00:00, 88.23url/s, CORRECT=963, INVALID=1968, MISSING=388, TIMEOUT=0, ERROR=0]
-Processing complete! See results in './result.csv'
+Processing complete! See results in './result.xlsx'
 ```
 
 <a name="ru-url-statuses"></a>
@@ -398,6 +441,34 @@ Processing complete! See results in './result.csv'
 - `NOT_MATCH` - Неверный URL-адрес, не соответствует шаблону
 - `UTM_INVALID` - Неверное значение кода UTM
 - `SPACER` - Неверный URL-адрес, содержит пробелы
+
+<a name="ru-utm-conditions"></a>
+
+### Условия для проверки UTM-кодов POS ссылки
+
+Возвращает результат проверки `True` (пройдена) или `False` (НЕ пройдена)
+
+- `ID`: Только цифры
+  ```regex
+  \d+
+  ```
+- `REG-CODE`: Только 2 цифры или одно из значений: `111`, `711`, `7114`
+   ```regex
+   \d{2}|111|711|7114
+   ```
+- `MUN-CODE`: Только 8 цифр
+   ```regex
+   \d{8}
+   ```
+- `OGRN`: Только 13 цифр
+   ```regex
+   \d{13}
+   ```
+- `SOURCE`: Только одно из значений: `vk`, `vk1`, `vk2`
+   ```regex
+   vk|vk1|vk2
+   ```
+- `UNDEFINED`: Неизвестный UTM-код
 
 <a name="ru-deployment"></a>
 
@@ -497,6 +568,16 @@ progressbar:
 display:
   csv_delimiter: ';'
   public_display_fields: [ pos_result, url, id, name, screen_name, pos_links, description ]
+  show_utm_status: true
+  codes_hints:
+    pattern: '{is_valid} {param}={value} ({hint}, шаблон: {pattern})'
+    items:
+      ID: 'Только цифры'
+      REG-CODE: 'Только 2 цифры или одно из значений: 111, 711, 7114'
+      MUN-CODE: 'Только 8 цифр'
+      OGRN: 'Только 13 цифр'
+      SOURCE: 'Только одно из значений: vk, vk1, vk2'
+      UNDEFINED: 'Неизвестный UTM-код'
   status_types:
     pattern: '{name}'
     items:
@@ -504,6 +585,7 @@ display:
       NOT_MATCH: { name: '❌', value: 'Неверный URL-адрес, не соответствует шаблону' }
       UTM_INVALID: { name: '⚠️', value: 'Неверное значение кода UTM' }
       SPACER: { name: '⚠️', value: 'Неверный URL-адрес, содержит пробелы' }
+      UNDEFINED: { name: '❗', value: 'Ссылка не является POS'}
   result_types:
     pattern: '{name}: {value}'
     items:
@@ -516,7 +598,7 @@ display:
 paths:
   log_file: 'runtime.log'
   target_file: 'target.txt'
-  result_file: 'result.csv'
+  result_file: 'result.xlsx'
   save_public_data_dir: 'publics_data'
 exceptions:
   connection:
@@ -568,16 +650,12 @@ exceptions:
 |          `public_display_fields`          |    `list`    | [`pos_result`, `url`, `name`, `pos_links`, `id`, `screen_name`] | Выберите поля для отображения в файле результатов (они будут отображены в том же порядке)<br/><br/>**Переменные**:<br/><ul><li>`pos_result` - тип результата анализа виджета POS</li><li>`url` - целевой общедоступный URL</li><li>`name` - разобранное имя общедоступного ресурса</li><li>`pos_links` - статус проверки ссылок POS</li><li>`id` - разобранный идентификатор общедоступного ресурса</li><li>`screen_name` - разобранное имя общедоступного ресурса</li><li>... добавьте больше из <a href="ru-parsing">parsing.public_data_fields</a></li></ul> |
 | `result_types`<br/>and<br/>`status_types` | `dictionary` |                                -                                | Здесь вы можете указать значения для отображения в файле результатов в формате шаблона<br/><br/>Используйте любые переменные, такие как `name`, `value` или другие. Затем укажите `pattern`, чтобы определить, как они будут предоставлены<br/><br/>**Пример для `status_type`:**<br/><pre>{"name": "✅", "value": "Правильные URL-адреса"}<br/>pattern = "{name}: {value}"</pre>будет представлено как: `✅: Правильные URL-адреса                                                                                                                               |
 
-##### Пример файла результата в формате CSV:
+##### Пример файла результата в формате XLSX:
 
-  ```
-  pos_result;url;name;pos_link1;pos_link1_status;pos_link2;pos_link2_status;id;screen_name
-  ✅;https://vk.com/public123;Public 123;https://pos.gosuslugi.ru/og/org-activities?.....;✅: Правильные URL-адреса;https://pos.gosuslugi.ru/form/?.....;✅: Правильные URL-адреса;32242414124;public123
-  ⚠️;https://vk.com/best_public_ever;Best public ever;https://pos.gosuslugi.ru/og/org-activities?.....;⚠️: Недопустимое значение кода UTM;https://pos.gosuslugi.ru/abcdf/?.....;❌: Неверно, URL не соответствует шаблону;98127468127;best_public_ever
-  ❗;https://vk.com/club321;Clubbers 321;https://pos.gosuslugi.ru/form/?.....;✅: Правильные URL-адреса;;;667678689;public667678689
-  ❌;https://vk.com/club12345678;Club 12345678;;;;12345678;club12345678
-  ...
-  ```
+  | pos_result | url                           |       id | name                | screen_name  | pos_url-0                                                                                          | pos_url_status-1 | url_utm_codes-1                                                                                                                                                                                                                                                                                                                                         | ... |
+|:-----------|:------------------------------|---------:|:--------------------|:-------------|:---------------------------------------------------------------------------------------------------|:-----------------|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----|
+| ✅          | https://vk.com/public12345678 | 12345678 | Имя паблика         | club12345678 | https://pos.gosuslugi.ru/form/?opaId=123456&utm_source=vk&utm_medium=11&utm_campaign=1234567890123 | ✅ Ок             | [True]() opaId='223186' (Только цифры, шаблон: '\\d+')<br/>[True]() utm_source='vk' (Только одно из значений: vk, vk1, vk2, шаблон: 'vk\|vk1\|vk2')<br/>[True]() utm_medium='44' (Только 2 цифры или одно из значений: 111, 711, 7114, шаблон: '\\d{2}\|111\\|711\|7114')<br/>[True]() utm_campaign='1024900965088' (Только 13 цифр, шаблон: '\\d{13}') | ... |
+| ❌          | https://vk.com/best_public    | 87654321 | Самый лучший паблик | best_public  |                                                                                                    |                  |                                                                                                                                                                                                                                                                                                                                                         | ... |
 
 <a name="ru-paths"></a>
 
@@ -587,7 +665,7 @@ exceptions:
 |:----------------------:|:--------:|:---------------------:|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 |       `log_file`       | `string` |     `runtime.log`     | Путь к файлу журнала выполнения                                                                                                                                                            |
 |     `target_file`      | `string` |     `target.txt`      | Путь к файлу с целевыми URL-адресами                                                                                                                                                       |
-|     `result_file`      | `string` |     `result.csv`      | Путь к файлу с результатами                                                                                                                                                                |
+|     `result_file`      | `string` |     `result.csv`      | Путь к файлу с результатами, формат по-умолчанию `xlsx`.<br/><br/>_Доступные форматы: `csv`, `xlsx`, `json`, `html`._                                                                      |
 | `save_public_data_dir` | `string` |    `publics_data`     | Путь к каталогу, в котором сохраняются разобранные данные группы VK в формате JSON<br/><br/>_Если <a href="#ru-parsing">parsing.save_public_data</a> равно `false`, данные не сохраняются_ |
 
 <a name="ru-exceptions"></a>
@@ -631,4 +709,7 @@ https://pos\.gosuslugi\.ru/(?:form/\?(opaId=\d+)|og/org-activities\?(?:(reg_code
     omegaconf==2.3.0
     tqdm==4.65.0
     vk==3.0
+    openpyxl==3.1.2
+    pandas~=2.0.2
+    requests~=2.31.0
     ```

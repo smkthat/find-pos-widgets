@@ -167,7 +167,8 @@ class Config:
                     VALID=dict(name='Correct', value=''),
                     NOT_MATCH=dict(name='Invalid, url don\'t match pattern', value=''),
                     UTM_INVALID=dict(name='Invalid UTM code value', value=''),
-                    SPACER=dict(name='Invalid, url contains spaces', value='')
+                    SPACER=dict(name='Invalid, url contains spaces', value=''),
+                    UNDEFINED=dict(name='Undefined POS url', value='')
                 )
             )))
             self._result_types = self.Type(**data.get('result_types', dict(
