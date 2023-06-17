@@ -353,10 +353,7 @@ https://pos\.gosuslugi\.ru/(?:form/\?(opaId=\d+)|og/org-activities\?(?:(reg_code
     requests~=2.31.0
     ```
 
-<br/>
 ---
-<br/>
-
 
 <a name="ru"></a>
 
