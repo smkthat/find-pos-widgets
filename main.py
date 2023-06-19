@@ -37,7 +37,8 @@ class WidgetFinder:
 
     def get_file_format(self) -> str:
         try:
-            file_format = CONFIG.paths.result_file.split('.', maxsplit=1)[1]
+            file_format = CONFIG.paths.result_file.split('.')[-1]
+            logger.info(f'Selected export format {file_format!r}')
             if file_format not in ['csv', 'xlsx', 'json', 'html', 'md']:
                 raise ValueError(f'Unsupported format for file {CONFIG.paths.result_file!r}')
         except IndexError:
