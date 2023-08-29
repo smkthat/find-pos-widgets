@@ -33,7 +33,7 @@ class WidgetFinder:
         self.urls = set()
         self.publics = {}
         self.__counters = {result_type.name: 0 for result_type in PosWidget.ResultType}
-        self.__api = API(access_token=CONFIG.vk_api['access_token'], v=CONFIG.vk_api.get('version', '5.131'))
+        self.__api = API(access_token=CONFIG.vk_api['access_token'], v=CONFIG.vk_api.get('version', 5.221'))
         self.file_format = self.get_file_format()
 
     def get_file_format(self) -> str:
@@ -140,7 +140,6 @@ class WidgetFinder:
                             time.sleep(sleep)
 
         logger.info(f'Processing complete! {self.__counters}')
-        print(f'Processing complete! See results in {CONFIG.paths.result_file!r}')
 
     def __get_publics_data(
             self,
@@ -172,7 +171,7 @@ class WidgetFinder:
 
             time.sleep(timeout)
             return self.__get_publics_data(group_identifies, tries)
-        return publics_data
+        return publics_data['groups']
 
     def get_public(self, public_data: dict) -> Public:
         by_club = self.publics.get(f'{self.VK_BASE_URL}/club{public_data["id"]}')
@@ -249,6 +248,7 @@ class WidgetFinder:
             df.to_json(CONFIG.paths.result_file, orient='table', index=False, indent=4, force_ascii=False)
         if self.file_format == 'html':
             df.to_html(CONFIG.paths.result_file, index=False, encoding='utf-16')
+        print(f'Processing complete! See results in {CONFIG.paths.result_file!r}')
 
     def clean_urls(self, urls: List[str]) -> Set[str]:
         return {self.clean_url(url) for url in urls}

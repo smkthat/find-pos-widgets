@@ -10,8 +10,9 @@ parsing:
   save_public_data: true
   # Fields to get from the VK API request:
   # - menu: required field to find POS widgets
+  # - is_government_organization: field to find government mark
   # ... other VK API fields
-  public_data_fields: [ menu, activity, city, addresses, contacts, description, members_count, status ]
+  public_data_fields: [ menu, is_government_organization, activity, city, addresses, contacts, description, members_count, status ]
   utm_codes_regex:
     ID: '\d+'
     REG-CODE: '\d{2}|111|711|7114'
@@ -22,7 +23,8 @@ display:
   csv_delimiter: ';'
   # Fields for which will be in the results file
   # pos_result, pos_links - fields for show POS urls parsing statuses
-  public_display_fields: [ pos_result, url, city.title, addresses.main_address.city.title, id, name, screen_name, pos_links ]
+  # is_government_organization - field for checking for the label of a government organization
+  public_display_fields: [ pos_result, url, is_government_organization, city.title, addresses.main_address.city.title, id, name, screen_name, pos_links ]
   # Whether to show detailed error information in UTM-tags
   show_utm_status: true
   codes_hints:
@@ -35,7 +37,7 @@ display:
     # - is_valid - validation result:
     #     True - passed validation
     #     False - failed verification
-    pattern: '{is_valid} {param}={value} ({hint}; pattern: "{pattern}")'
+    pattern: '{is_valid} {param}={value} ({hint}; pattern: {pattern})'
     items:
       ID: 'Only digits'
       REG-CODE: 'Only 2 digits or one of the values: 111, 711, 7114'

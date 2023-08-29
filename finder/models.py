@@ -1,6 +1,6 @@
 import re
 import enum
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Union
 from urllib.parse import urlparse, parse_qs
 
 from configs import get_logger, CONFIG
@@ -10,6 +10,7 @@ logger = get_logger(__name__)
 
 class Public:
     __url: str
+    is_government_org: Union[bool, None] = None
     pos_widget: 'PosWidget'
     data: dict
 
@@ -41,7 +42,7 @@ class Public:
         if not data:
             self.pos_widget.result = PosWidget.ResultType.ERROR
             return self
-
+        self.is_government_org = data.get('is_government_org', None)
         self.pos_widget.parse_data(data)
         self.data = data
         return self

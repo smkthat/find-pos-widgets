@@ -84,7 +84,7 @@ class Config:
             self._max_links_per_widget = data.get('max_links_per_widget', 0)
             self._skip_correct = data.get('skip_correct', False)
             self._save_public_data = data.get('save_public_data', True)
-            self._public_data_fields = data.get('public_data_fields', ['menu'])
+            self._public_data_fields = data.get('public_data_fields', ['menu', 'is_government_organization'])
             self._utm_codes_regex = data.get('utm_codes_regex', {})
 
     @dataclass
