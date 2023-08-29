@@ -1,4 +1,5 @@
 import json
+import os.path
 import sys
 import time
 import unicodedata
@@ -157,7 +158,7 @@ class WidgetFinder:
                 fields=','.join(fields)
             )
         except ConnectionError as ce:
-            if tries == CONFIG.exceptions.get('connection', {}).get('max_tries', 5):
+            if tries == CONFIG.exceptions.connection.get('max_tries', 5):
                 raise ce
 
             tries += 1
@@ -205,6 +206,13 @@ class WidgetFinder:
             if CONFIG.parsing.skip_correct and pos_widget.result is PosWidget.ResultType.CORRECT:
                 continue
 
+            if CONFIG.parsing.save_public_data:
+                with open(
+                        os.path.join(CONFIG.paths.save_public_data_dir, f'{public.identify}.json'),
+                        mode='w'
+                ) as f:
+                    json.dump(public.data, f, ensure_ascii=False, indent=4)
+
             row = []
             for field in CONFIG.display.public_display_fields:
                 if field == 'pos_links':
@@ -224,9 +232,10 @@ class WidgetFinder:
                 elif field == 'url':
                     row.append(public.url)
                 else:
-                    row.append(str(public.data.get(field, '')))
+                    row.append(str(public.get_field_data(field)))
 
-            data.append(row)
+            if row:
+                data.append(row)
 
         df = pd.DataFrame(data, columns=columns)
         self.save_data(df)
@@ -251,8 +260,9 @@ class WidgetFinder:
         parsed_url = urlparse(url)
 
         scheme = parsed_url.scheme
-        if scheme == 'http':
+        if not scheme or scheme == 'http':
             scheme = 'https'
+
         hostname = parsed_url.hostname
         if hostname != 'vk.com':
             hostname = 'vk.com'

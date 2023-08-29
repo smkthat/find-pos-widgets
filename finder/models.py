@@ -27,6 +27,16 @@ class Public:
         split_url = self.__url.split('/')
         return split_url[-1] if split_url else ''
 
+    def get_field_data(self, field: str):
+        field_attrs = field.split('.')
+        field_name = field_attrs.pop(0)
+        field_data = self.data.get(field_name, '')
+        if field_attrs:
+            for attr in field_attrs:
+                if isinstance(field_data, dict):
+                    field_data = field_data.get(attr, '')
+        return field_data
+
     def parse(self, data: dict) -> 'Public':
         if not data:
             self.pos_widget.result = PosWidget.ResultType.ERROR
@@ -108,25 +118,25 @@ class UTMCode:
 
 class OpaId(UTMCode):
     _code = 'ID'
-    _pattern = r'\d+'
+    _pattern = CONFIG.parsing.utm_codes_regex.get(_code, r'\d+')
     _hint = 'Only digits expected'
 
 
 class RegCode(UTMCode):
     _code = 'REG-CODE'
-    _pattern = r'\d{2}|111|711|7114'
+    _pattern = CONFIG.parsing.utm_codes_regex.get(_code, r'\d{2}|111|711|7114')
     _hint = 'Only 2 digits or 111|711|7114 expected'
 
 
 class MunCode(UTMCode):
     _code = 'MUN-CODE'
-    _pattern = r'\d{8}'
+    _pattern = CONFIG.parsing.utm_codes_regex.get(_code, r'\d{8}')
     _hint = 'Only 8 digits expected'
 
 
 class OgrnCode(UTMCode):
     _code = 'OGRN'
-    _pattern = r'\d{13}'
+    _pattern = CONFIG.parsing.utm_codes_regex.get(_code, r'\d{13}')
     _hint = 'Only 13 digits expected'
 
 
@@ -207,7 +217,8 @@ class PosUrl:
 
             utm_code.param = param
             utm_code.value = value
-            self._utm_codes[param] = utm_code
+            if param and value:
+                self._utm_codes[param] = utm_code
 
         return all([code.is_valid for code in self._utm_codes.values()])
 

@@ -15,7 +15,7 @@ class Config:
     _progressbar: 'Progressbar'
     _display: 'Display'
     _paths: 'Paths'
-    _exceptions: DictConfig
+    _exceptions: 'Exceptions'
 
     @property
     def vk_api(self) -> DictConfig:
@@ -55,6 +55,7 @@ class Config:
         _skip_correct: bool
         _save_public_data: bool
         _public_data_fields: list
+        _utm_codes_regex: dict
 
         @property
         def max_links_per_widget(self) -> int:
@@ -72,6 +73,10 @@ class Config:
         def public_data_fields(self) -> List[str]:
             return self._public_data_fields
 
+        @property
+        def utm_codes_regex(self) -> Dict[str, str]:
+            return self._utm_codes_regex
+
         def __init__(self, data: DictConfig = None) -> None:
             if not data:
                 data = {}
@@ -79,7 +84,8 @@ class Config:
             self._max_links_per_widget = data.get('max_links_per_widget', 0)
             self._skip_correct = data.get('skip_correct', False)
             self._save_public_data = data.get('save_public_data', True)
-            self._public_data_fields = data.get('fields', ['menu'])
+            self._public_data_fields = data.get('public_data_fields', ['menu'])
+            self._utm_codes_regex = data.get('utm_codes_regex', {})
 
     @dataclass
     class Progressbar:
