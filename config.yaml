@@ -10,12 +10,21 @@ parsing:
   save_public_data: true
   # Fields to get from the VK API request:
   # - menu: required field to find POS widgets
+  # - is_government_organization: field to find government mark
   # ... other VK API fields
-  public_data_fields: [ menu, activity, city, contacts, description, members_count, status ]
+  public_data_fields: [ menu, is_government_organization, activity, city, addresses, contacts, description, members_count, status ]
+  utm_codes_regex:
+    ID: '\d+'
+    REG-CODE: '\d{2}|111|711|7114'
+    MUN-CODE: '\d{8}'
+    OGRN: '\d{13}'
+    SOURCE: 'vk|vk1|vk2'
 display:
   csv_delimiter: ';'
   # Fields for which will be in the results file
-  public_display_fields: [ pos_result, url, id, name, screen_name, pos_links ]
+  # pos_result, pos_links - fields for show POS urls parsing statuses
+  # is_government_organization - field for checking for the label of a government organization
+  public_display_fields: [ pos_result, url, is_government_organization, city.title, addresses.main_address.city.title, id, name, screen_name, pos_links ]
   # Whether to show detailed error information in UTM-tags
   show_utm_status: true
   codes_hints:
@@ -28,7 +37,7 @@ display:
     # - is_valid - validation result:
     #     True - passed validation
     #     False - failed verification
-    pattern: '{is_valid} {param}={value} ({hint}, pattern: {pattern})'
+    pattern: '{is_valid} {param}={value} ({hint}; pattern: {pattern})'
     items:
       ID: 'Only digits'
       REG-CODE: 'Only 2 digits or one of the values: 111, 711, 7114'
@@ -39,20 +48,20 @@ display:
   status_types:
     pattern: '{name} {value}'
     items:
-      VALID: { name: '✅', value: 'Ок' }
-      NOT_MATCH: { name: '❌', value: 'Не соответствует шаблону' }
-      UTM_INVALID: { name: '⚠️', value: 'Не правильные значения UTM меток' }
-      SPACER: { name: '⚠️', value: 'В ссылке есть пробел' }
-      UNDEFINED: {name: '❌', value: 'Undefined URL'}
+      VALID: { name: '✅', value: 'Correct urls' }
+      NOT_MATCH: { name: '❌', value: 'Invalid, url dont match pattern' }
+      UTM_INVALID: { name: '⚠️', value: 'Invalid UTM code value' }
+      SPACER: { name: '⚠️', value: 'Invalid, url contains spaces' }
+      UNDEFINED: {name: '🆘', value: 'Undefined POS url'}
   result_types:
-    pattern: '{name}'
+    pattern: '{name} {value}'
     items:
-      CORRECT: { name: '✅', value: 'Ок' }
-      INVALID: { name: '⚠️', value: 'Есть ошибки в виджетах' }
-      LINKS_COUNT: { name: '❗', value: 'Некорректное число виджетов' }
-      MISSING: { name: '❌', value: 'Отсутствует' }
-      TIMEOUT: { name: '⌛️', value: 'Ошибка получения данных паблика' }
-      ERROR: { name: '🆘', value: 'Ошибка обработки данных паблика' }
+      CORRECT: { name: '✅', value: 'Correct urls' }
+      INVALID: { name: '⚠️', value: 'Contain NOT valid urls' }
+      LINKS_COUNT: { name: '❗', value: 'Widgets links count not pass tests' }
+      MISSING: { name: '❌', value: 'Urls NOT exists' }
+      TIMEOUT: { name: '⌛️', value: 'Timeout when getting url page data' }
+      ERROR: { name: '🆘', value: 'NOT valid url or data parsing errors' }
 paths:
   log_file: 'runtime.log'
   target_file: 'target.txt'
