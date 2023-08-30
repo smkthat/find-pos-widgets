@@ -33,7 +33,7 @@ class WidgetFinder:
         self.urls = set()
         self.publics = {}
         self.__counters = {result_type.name: 0 for result_type in PosWidget.ResultType}
-        self.__api = API(access_token=CONFIG.vk_api['access_token'], v=CONFIG.vk_api.get('version', 5.221'))
+        self.__api = API(access_token=CONFIG.vk_api['access_token'], v=CONFIG.vk_api.get('version', 5.221))
         self.file_format = self.get_file_format()
 
     def get_file_format(self) -> str:
