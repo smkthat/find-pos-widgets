@@ -209,6 +209,7 @@ class WidgetFinder:
             if CONFIG.parsing.save_public_data:
                 with open(
                         os.path.join(CONFIG.paths.save_public_data_dir, f'{public.identify}.json'),
+                        encoding='utf8',
                         mode='w'
                 ) as f:
                     json.dump(public.data, f, ensure_ascii=False, indent=4)
